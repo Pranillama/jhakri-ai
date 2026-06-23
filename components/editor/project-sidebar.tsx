@@ -12,6 +12,11 @@ interface ProjectSidebarProps {
   onClose: () => void
 }
 
+/**
+ * Displays an off-canvas projects sidebar with tabbed navigation and project management options.
+ *
+ * The sidebar slides in and out based on the `isOpen` prop and can be dismissed via the close button or the `onClose` callback.
+ */
 export function ProjectSidebar({ isOpen, onClose }: ProjectSidebarProps) {
   return (
     <aside
@@ -65,6 +70,11 @@ export function ProjectSidebar({ isOpen, onClose }: ProjectSidebarProps) {
   )
 }
 
+/**
+ * Displays a centered placeholder message.
+ *
+ * @param message - The text to display in the empty state
+ */
 function EmptyState({ message }: { message: string }) {
   return (
     <div className="flex h-full items-center justify-center px-4 py-10 text-center text-sm text-copy-muted">

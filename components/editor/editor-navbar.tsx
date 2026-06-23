@@ -9,6 +9,12 @@ interface EditorNavbarProps {
   onToggleSidebar: () => void
 }
 
+/**
+ * Renders a top navigation bar with a sidebar toggle button.
+ *
+ * @param sidebarOpen - Current state of the sidebar
+ * @param onToggleSidebar - Callback to toggle the sidebar state
+ */
 export function EditorNavbar({ sidebarOpen, onToggleSidebar }: EditorNavbarProps) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-surface-border bg-surface px-3">

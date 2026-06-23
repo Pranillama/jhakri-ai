@@ -21,9 +21,7 @@ interface EditorDialogProps {
 }
 
 /**
- * Reusable dialog pattern for the editor. Wraps the shadcn Dialog primitive
- * with a consistent title / description / footer structure and project tokens.
- * Concrete feature dialogs compose this rather than re-styling from scratch.
+ * A controlled dialog component that displays a title, optional description, and optional footer with consistent styling.
  */
 export function EditorDialog({
   open,
