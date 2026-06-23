@@ -1,67 +1,166 @@
 "use client"
 
-import { Plus, X } from "lucide-react"
+import { MoreHorizontal, Pencil, Plus, Trash2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { MOCK_OWNED_PROJECTS, MOCK_SHARED_PROJECTS } from "@/lib/mock-projects"
 import { cn } from "@/lib/utils"
+import type { Project } from "@/types/project"
 
 interface ProjectSidebarProps {
   isOpen: boolean
   onClose: () => void
+  onCreateProject: () => void
+  onRenameProject: (project: Project) => void
+  onDeleteProject: (project: Project) => void
 }
 
-export function ProjectSidebar({ isOpen, onClose }: ProjectSidebarProps) {
+export function ProjectSidebar({
+  isOpen,
+  onClose,
+  onCreateProject,
+  onRenameProject,
+  onDeleteProject,
+}: ProjectSidebarProps) {
   return (
-    <aside
-      aria-hidden={!isOpen}
-      className={cn(
-        "absolute inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-surface-border bg-surface/95 backdrop-blur-sm transition-transform duration-200 ease-out",
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      )}
-    >
-      <div className="flex shrink-0 items-center justify-between border-b border-surface-border px-4 py-3">
-        <h2 className="text-sm font-medium text-copy-primary">Projects</h2>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={onClose}
-          aria-label="Close projects sidebar"
-        >
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
+    <>
+      {/* Mobile-only backdrop scrim — tapping outside closes the sidebar. */}
+      <button
+        type="button"
+        aria-hidden={!isOpen}
+        tabIndex={-1}
+        onClick={onClose}
+        className={cn(
+          "absolute inset-0 z-30 cursor-default bg-base/60 backdrop-blur-[1px] transition-opacity duration-200 md:hidden",
+          isOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        )}
+      />
 
-      <Tabs
-        defaultValue="my-projects"
-        className="flex flex-1 flex-col gap-0 overflow-hidden p-4"
+      <aside
+        aria-hidden={!isOpen}
+        className={cn(
+          "absolute inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-surface-border bg-surface/95 backdrop-blur-sm transition-transform duration-200 ease-out",
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        )}
       >
-        <TabsList className="w-full shrink-0">
-          <TabsTrigger value="my-projects">My Projects</TabsTrigger>
-          <TabsTrigger value="shared">Shared</TabsTrigger>
-        </TabsList>
+        <div className="flex shrink-0 items-center justify-between border-b border-surface-border px-4 py-3">
+          <h2 className="text-sm font-medium text-copy-primary">Projects</h2>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onClose}
+            aria-label="Close projects sidebar"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
 
-        <TabsContent value="my-projects" className="mt-3 min-h-0 flex-1">
-          <ScrollArea className="h-full">
-            <EmptyState message="No projects yet" />
-          </ScrollArea>
-        </TabsContent>
+        <Tabs
+          defaultValue="my-projects"
+          className="flex flex-1 flex-col gap-0 overflow-hidden p-4"
+        >
+          <TabsList className="w-full shrink-0">
+            <TabsTrigger value="my-projects">My Projects</TabsTrigger>
+            <TabsTrigger value="shared">Shared</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="shared" className="mt-3 min-h-0 flex-1">
-          <ScrollArea className="h-full">
-            <EmptyState message="No shared projects yet" />
-          </ScrollArea>
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="my-projects" className="mt-3 min-h-0 flex-1">
+            <ScrollArea className="h-full">
+              {MOCK_OWNED_PROJECTS.length === 0 ? (
+                <EmptyState message="No projects yet" />
+              ) : (
+                <ul className="flex flex-col gap-1">
+                  {MOCK_OWNED_PROJECTS.map((project) => (
+                    <ProjectItem
+                      key={project.id}
+                      project={project}
+                      onRename={onRenameProject}
+                      onDelete={onDeleteProject}
+                    />
+                  ))}
+                </ul>
+              )}
+            </ScrollArea>
+          </TabsContent>
 
-      <div className="shrink-0 border-t border-surface-border p-4">
-        <Button className="w-full">
-          <Plus className="h-4 w-4" />
-          New Project
-        </Button>
-      </div>
-    </aside>
+          <TabsContent value="shared" className="mt-3 min-h-0 flex-1">
+            <ScrollArea className="h-full">
+              {MOCK_SHARED_PROJECTS.length === 0 ? (
+                <EmptyState message="No shared projects yet" />
+              ) : (
+                <ul className="flex flex-col gap-1">
+                  {MOCK_SHARED_PROJECTS.map((project) => (
+                    <ProjectItem key={project.id} project={project} />
+                  ))}
+                </ul>
+              )}
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
+
+        <div className="shrink-0 border-t border-surface-border p-4">
+          <Button className="w-full" onClick={onCreateProject}>
+            <Plus className="h-4 w-4" />
+            New Project
+          </Button>
+        </div>
+      </aside>
+    </>
+  )
+}
+
+interface ProjectItemProps {
+  project: Project
+  onRename?: (project: Project) => void
+  onDelete?: (project: Project) => void
+}
+
+function ProjectItem({ project, onRename, onDelete }: ProjectItemProps) {
+  // Actions are only shown for owned projects (those passed handlers).
+  const hasActions = Boolean(onRename && onDelete)
+
+  return (
+    <li className="group/item flex items-center gap-1 rounded-xl px-2.5 py-2 transition-colors hover:bg-elevated">
+      <span className="min-w-0 flex-1 truncate text-sm text-copy-secondary">
+        {project.name}
+      </span>
+
+      {hasActions ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="opacity-0 transition-opacity group-hover/item:opacity-100 aria-expanded:opacity-100"
+              aria-label={`Actions for ${project.name}`}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onRename?.(project)}>
+              <Pencil className="h-4 w-4" />
+              Rename
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => onDelete?.(project)}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
+    </li>
   )
 }
 
