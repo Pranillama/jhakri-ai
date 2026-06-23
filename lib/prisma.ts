@@ -5,7 +5,11 @@ import { withAccelerate } from "@prisma/extension-accelerate";
 function createPrismaClient() {
   const url = process.env.DATABASE_URL;
 
-  if (url?.startsWith("prisma+postgres://")) {
+  if (!url) {
+    throw new Error("DATABASE_URL is required but was not set.");
+  }
+
+  if (url.startsWith("prisma+postgres://")) {
     return new PrismaClient({ accelerateUrl: url }).$extends(withAccelerate());
   }
 
