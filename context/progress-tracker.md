@@ -4,15 +4,16 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Phase 1: Design System & UI Primitives
+- Phase 2: Editor Chrome
 
 ## Current Goal
 
-- Install and configure shadcn/ui, add core UI components, set up dark theme tokens.
+- Build the base editor chrome reused across all editor chapters: top navbar, floating left project sidebar shell, and a reusable dialog pattern.
 
 ## Completed
 
 - 01-design-system: shadcn/ui configured (radix-nova preset), Button, Card, Dialog, Input, Tabs, Textarea, ScrollArea installed, lucide-react installed, cn() helper in lib/utils.ts, dark-only theme with project CSS variables in globals.css.
+- 02-editor: editor chrome components — `components/editor/editor-navbar.tsx` (fixed-height top navbar with sidebar toggle using PanelLeftOpen/PanelLeftClose, empty center/right sections), `components/editor/project-sidebar.tsx` (floating slide-in left sidebar with Projects header + close, My Projects/Shared tabs with empty states, full-width New Project button), and `components/editor/editor-dialog.tsx` (reusable dialog pattern wrapping shadcn Dialog with title/description/footer props).
 
 ## In Progress
 
@@ -20,7 +21,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Next Up
 
-- Next feature spec.
+- Next feature spec (editor page wiring / canvas).
 
 ## Open Questions
 
