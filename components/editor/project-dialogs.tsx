@@ -27,11 +27,11 @@ export function ProjectDialogs({ dialogs }: ProjectDialogsProps) {
 }
 
 function CreateProjectDialog({ dialogs }: ProjectDialogsProps) {
-  const { openDialog, name, loading, setName, close, submitCreate } = dialogs
-  const slug = slugify(name)
-  // A name made only of symbols/whitespace yields an empty slug — block it.
-  const canSubmit = !loading && slug !== ""
-  const showSlugWarning = name.trim() !== "" && slug === ""
+  const { openDialog, name, roomId, loading, error, setName, close, submitCreate } =
+    dialogs
+  // A name made only of symbols/whitespace yields an empty slug (and room ID).
+  const canSubmit = !loading && roomId !== ""
+  const showSlugWarning = name.trim() !== "" && roomId === ""
 
   return (
     <EditorDialog
@@ -72,20 +72,29 @@ function CreateProjectDialog({ dialogs }: ProjectDialogsProps) {
           </p>
         ) : (
           <p className="text-xs text-copy-muted">
-            Slug:{" "}
+            Room ID:{" "}
             <span className="font-mono text-copy-secondary">
-              {slug || "your-project"}
+              {roomId || "your-project-id"}
             </span>
           </p>
         )}
+        {error ? <p className="text-sm text-error">{error}</p> : null}
       </div>
     </EditorDialog>
   )
 }
 
 function RenameProjectDialog({ dialogs }: ProjectDialogsProps) {
-  const { openDialog, activeProject, name, loading, setName, close, submitRename } =
-    dialogs
+  const {
+    openDialog,
+    activeProject,
+    name,
+    loading,
+    error,
+    setName,
+    close,
+    submitRename,
+  } = dialogs
   // Same empty-slug guard as Create — a rename must still yield a usable slug.
   const canSubmit = !loading && slugify(name) !== ""
   const showSlugWarning = name.trim() !== "" && slugify(name) === ""
@@ -131,13 +140,15 @@ function RenameProjectDialog({ dialogs }: ProjectDialogsProps) {
             Name must include at least one letter or number.
           </p>
         ) : null}
+        {error ? <p className="text-sm text-error">{error}</p> : null}
       </div>
     </EditorDialog>
   )
 }
 
 function DeleteProjectDialog({ dialogs }: ProjectDialogsProps) {
-  const { openDialog, activeProject, loading, close, submitDelete } = dialogs
+  const { openDialog, activeProject, loading, error, close, submitDelete } =
+    dialogs
 
   return (
     <EditorDialog
@@ -159,7 +170,9 @@ function DeleteProjectDialog({ dialogs }: ProjectDialogsProps) {
           </Button>
         </>
       }
-    />
+    >
+      {error ? <p className="text-sm text-error">{error}</p> : null}
+    </EditorDialog>
   )
 }
 
