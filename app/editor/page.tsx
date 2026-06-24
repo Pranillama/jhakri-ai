@@ -1,37 +1,34 @@
-"use client"
+import { auth, currentUser } from "@clerk/nextjs/server"
+import { redirect } from "next/navigation"
 
-import { useState } from "react"
+import { EditorWorkspace } from "@/components/editor/editor-workspace"
+import { listOwnedProjects, listSharedProjects } from "@/lib/projects"
+import type { Project } from "@/types/project"
 
-import { EditorHome } from "@/components/editor/editor-home"
-import { EditorNavbar } from "@/components/editor/editor-navbar"
-import { ProjectDialogs } from "@/components/editor/project-dialogs"
-import { ProjectSidebar } from "@/components/editor/project-sidebar"
-import { useProjectDialogs } from "@/hooks/use-project-dialogs"
+/**
+ * Editor home — a server component. Fetches the signed-in user's owned and
+ * shared projects and hands both lists to the client workspace shell. No
+ * client-side fetching for the initial load.
+ */
+export default async function EditorPage() {
+  const { userId } = await auth()
 
-export default function EditorPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const dialogs = useProjectDialogs()
+  if (!userId) {
+    redirect("/sign-in")
+  }
+
+  const user = await currentUser()
+  const email = user?.primaryEmailAddress?.emailAddress
+
+  const [ownedProjects, sharedProjects] = await Promise.all([
+    listOwnedProjects(userId),
+    email ? listSharedProjects(email) : Promise.resolve<Project[]>([]),
+  ])
 
   return (
-    <div className="flex h-dvh flex-col bg-base">
-      <EditorNavbar
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={() => setSidebarOpen((open) => !open)}
-      />
-
-      <div className="relative flex flex-1 overflow-hidden">
-        <ProjectSidebar
-          isOpen={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-          onCreateProject={dialogs.openCreate}
-          onRenameProject={dialogs.openRename}
-          onDeleteProject={dialogs.openDelete}
-        />
-
-        <EditorHome onCreateProject={dialogs.openCreate} />
-      </div>
-
-      <ProjectDialogs dialogs={dialogs} />
-    </div>
+    <EditorWorkspace
+      ownedProjects={ownedProjects}
+      sharedProjects={sharedProjects}
+    />
   )
 }

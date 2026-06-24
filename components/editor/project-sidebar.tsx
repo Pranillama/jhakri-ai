@@ -11,13 +11,14 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { MOCK_OWNED_PROJECTS, MOCK_SHARED_PROJECTS } from "@/lib/mock-projects"
 import { cn } from "@/lib/utils"
 import type { Project } from "@/types/project"
 
 interface ProjectSidebarProps {
   isOpen: boolean
   onClose: () => void
+  ownedProjects: Project[]
+  sharedProjects: Project[]
   onCreateProject: () => void
   onRenameProject: (project: Project) => void
   onDeleteProject: (project: Project) => void
@@ -26,6 +27,8 @@ interface ProjectSidebarProps {
 export function ProjectSidebar({
   isOpen,
   onClose,
+  ownedProjects,
+  sharedProjects,
   onCreateProject,
   onRenameProject,
   onDeleteProject,
@@ -74,11 +77,11 @@ export function ProjectSidebar({
 
           <TabsContent value="my-projects" className="mt-3 min-h-0 flex-1">
             <ScrollArea className="h-full">
-              {MOCK_OWNED_PROJECTS.length === 0 ? (
+              {ownedProjects.length === 0 ? (
                 <EmptyState message="No projects yet" />
               ) : (
                 <ul className="flex flex-col gap-1">
-                  {MOCK_OWNED_PROJECTS.map((project) => (
+                  {ownedProjects.map((project) => (
                     <ProjectItem
                       key={project.id}
                       project={project}
@@ -93,11 +96,11 @@ export function ProjectSidebar({
 
           <TabsContent value="shared" className="mt-3 min-h-0 flex-1">
             <ScrollArea className="h-full">
-              {MOCK_SHARED_PROJECTS.length === 0 ? (
+              {sharedProjects.length === 0 ? (
                 <EmptyState message="No shared projects yet" />
               ) : (
                 <ul className="flex flex-col gap-1">
-                  {MOCK_SHARED_PROJECTS.map((project) => (
+                  {sharedProjects.map((project) => (
                     <ProjectItem key={project.id} project={project} />
                   ))}
                 </ul>
