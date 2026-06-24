@@ -8,6 +8,9 @@ import type { Project, ProjectOwnership } from "@/types/project";
  */
 const PROJECT_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+/** Pragmatic email shape check for collaborator invites. */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 /** Shape selected from the DB for the sidebar lists. */
 interface ProjectRecord {
   id: string;
@@ -36,12 +39,24 @@ export async function listOwnedProjects(userId: string): Promise<Project[]> {
 }
 
 /**
- * Lists projects shared with `email` via a collaborator record, newest first,
- * mapped to the sidebar's `Project` shape.
+ * Lists projects shared with any of `emails` via a collaborator record, newest
+ * first, mapped to the sidebar's `Project` shape. Accepts the user's full set of
+ * verified emails since an invite may target a secondary address. Emails are
+ * stored lowercased, so the lookup lowercases its arguments to match.
  */
-export async function listSharedProjects(email: string): Promise<Project[]> {
+export async function listSharedProjects(
+  emails: string[]
+): Promise<Project[]> {
+  if (emails.length === 0) {
+    return [];
+  }
+
   const projects = await prisma.project.findMany({
-    where: { collaborators: { some: { email } } },
+    where: {
+      collaborators: {
+        some: { email: { in: emails.map((email) => email.toLowerCase()) } },
+      },
+    },
     orderBy: { createdAt: "desc" },
     select: { id: true, name: true },
   });
@@ -50,36 +65,55 @@ export async function listSharedProjects(email: string): Promise<Project[]> {
 }
 
 /**
- * Result of verifying that a user may mutate a project. `404` distinguishes a
- * missing project from `403`, which signals an existing project owned by
- * someone else.
+ * Returns whether `userId` owns the project. Used to gate collaborator invite
+ * and removal, which are owner-only.
  */
-export type ProjectOwnershipResult =
-  | { ok: true }
-  | { ok: false; status: 403 | 404 };
-
-/**
- * Confirms `userId` owns the project. Only the owner may rename or delete a
- * project, per the auth model in `architecture-context.md`.
- */
-export async function checkProjectOwnership(
+export async function isProjectOwner(
   projectId: string,
   userId: string
-): Promise<ProjectOwnershipResult> {
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { ownerId: true },
+): Promise<boolean> {
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, ownerId: userId },
+    select: { id: true },
   });
 
-  if (!project) {
-    return { ok: false, status: 404 };
+  return project !== null;
+}
+
+/**
+ * Extracts and normalizes a collaborator `email` from an unvalidated request
+ * body: trimmed, lowercased, and shape-checked. Returns `undefined` when absent
+ * or not a plausible email.
+ */
+export function parseCollaboratorEmail(body: unknown): string | undefined {
+  if (body && typeof body === "object" && "email" in body) {
+    const { email } = body as { email: unknown };
+    if (typeof email === "string") {
+      const normalized = email.trim().toLowerCase();
+      if (EMAIL_PATTERN.test(normalized)) {
+        return normalized;
+      }
+    }
   }
 
-  if (project.ownerId !== userId) {
-    return { ok: false, status: 403 };
-  }
+  return undefined;
+}
 
-  return { ok: true };
+/**
+ * Classifies why an owner-scoped mutation (`where: { id, ownerId }`) matched no
+ * row. Ownership is enforced atomically by the mutation itself; this only runs
+ * on its not-found path to pick the right status: `404` when the project does
+ * not exist, `403` when it exists but is owned by someone else.
+ */
+export async function resolveMutationFailureStatus(
+  projectId: string
+): Promise<403 | 404> {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { id: true },
+  });
+
+  return project ? 403 : 404;
 }
 
 /**

@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
+import { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { parseProjectId, parseProjectName } from "@/lib/projects";
 
@@ -47,9 +48,25 @@ export async function POST(request: Request) {
   const name = parseProjectName(body) || DEFAULT_PROJECT_NAME;
   const id = parseProjectId(body);
 
-  const project = await prisma.project.create({
-    data: { ownerId: userId, name, ...(id ? { id } : {}) },
-  });
+  try {
+    const project = await prisma.project.create({
+      data: { ownerId: userId, name, ...(id ? { id } : {}) },
+    });
 
-  return NextResponse.json(project, { status: 201 });
+    return NextResponse.json(project, { status: 201 });
+  } catch (error) {
+    // A client-supplied id (the room ID) can collide on a duplicated/retried
+    // POST — surface that as a 409 rather than an opaque 500.
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return NextResponse.json(
+        { error: "A project with that id already exists" },
+        { status: 409 }
+      );
+    }
+
+    throw error;
+  }
 }

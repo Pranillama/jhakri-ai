@@ -1,9 +1,8 @@
-import { auth, currentUser } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 
 import { EditorWorkspace } from "@/components/editor/editor-workspace"
+import { getCurrentIdentity } from "@/lib/project-access"
 import { listOwnedProjects, listSharedProjects } from "@/lib/projects"
-import type { Project } from "@/types/project"
 
 /**
  * Editor home — a server component. Fetches the signed-in user's owned and
@@ -11,18 +10,15 @@ import type { Project } from "@/types/project"
  * client-side fetching for the initial load.
  */
 export default async function EditorPage() {
-  const { userId } = await auth()
+  const identity = await getCurrentIdentity()
 
-  if (!userId) {
+  if (!identity) {
     redirect("/sign-in")
   }
 
-  const user = await currentUser()
-  const email = user?.primaryEmailAddress?.emailAddress
-
   const [ownedProjects, sharedProjects] = await Promise.all([
-    listOwnedProjects(userId),
-    email ? listSharedProjects(email) : Promise.resolve<Project[]>([]),
+    listOwnedProjects(identity.userId),
+    listSharedProjects(identity.emails),
   ])
 
   return (
