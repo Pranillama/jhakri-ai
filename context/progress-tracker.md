@@ -35,7 +35,8 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Architecture Decisions
 
-- Project ID == Liveblocks room ID. The create flow generates `<slug>-<suffix>` client-side and sends it as the project `id`; `POST /api/projects` persists it (validated, URL-safe) instead of always using the cuid default, so the DB record and the future room share one identifier. This extends 06's "use the schema's ID strategy" — cuid remains the fallback when no valid id is supplied.
+- Project ID == Liveblocks room ID. The create flow generates `<slug>-<suffix>` client-side and sends it as the project `id`; `POST /api/projects` persists it (validated, URL-safe) instead of always using the cuid default, so the DB record and the future room share one identifier. This extends 06's "use the schema's ID strategy" — cuid remains the fallback when no valid id is supplied. `POST` returns 409 on a `P2002` id collision (duplicated/retried create).
+- Ownership enforcement is atomic with the write (code-review fix). `PATCH`/`DELETE` no longer pre-check ownership in a separate query (TOCTOU window); they scope the mutation to `where: { id, ownerId }` and catch Prisma `P2025`. On that not-found path, `resolveMutationFailureStatus` in `lib/projects.ts` does a single existence read to pick 403 (exists, other owner) vs 404 (missing). The old `checkProjectOwnership`/`ProjectOwnershipResult` were removed.
 
 ## Session Notes
 

@@ -50,36 +50,20 @@ export async function listSharedProjects(email: string): Promise<Project[]> {
 }
 
 /**
- * Result of verifying that a user may mutate a project. `404` distinguishes a
- * missing project from `403`, which signals an existing project owned by
- * someone else.
+ * Classifies why an owner-scoped mutation (`where: { id, ownerId }`) matched no
+ * row. Ownership is enforced atomically by the mutation itself; this only runs
+ * on its not-found path to pick the right status: `404` when the project does
+ * not exist, `403` when it exists but is owned by someone else.
  */
-export type ProjectOwnershipResult =
-  | { ok: true }
-  | { ok: false; status: 403 | 404 };
-
-/**
- * Confirms `userId` owns the project. Only the owner may rename or delete a
- * project, per the auth model in `architecture-context.md`.
- */
-export async function checkProjectOwnership(
-  projectId: string,
-  userId: string
-): Promise<ProjectOwnershipResult> {
+export async function resolveMutationFailureStatus(
+  projectId: string
+): Promise<403 | 404> {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
-    select: { ownerId: true },
+    select: { id: true },
   });
 
-  if (!project) {
-    return { ok: false, status: 404 };
-  }
-
-  if (project.ownerId !== userId) {
-    return { ok: false, status: 403 };
-  }
-
-  return { ok: true };
+  return project ? 403 : 404;
 }
 
 /**
