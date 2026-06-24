@@ -8,6 +8,9 @@ import type { Project, ProjectOwnership } from "@/types/project";
  */
 const PROJECT_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+/** Pragmatic email shape check for collaborator invites. */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 /** Shape selected from the DB for the sidebar lists. */
 interface ProjectRecord {
   id: string;
@@ -36,17 +39,64 @@ export async function listOwnedProjects(userId: string): Promise<Project[]> {
 }
 
 /**
- * Lists projects shared with `email` via a collaborator record, newest first,
- * mapped to the sidebar's `Project` shape.
+ * Lists projects shared with any of `emails` via a collaborator record, newest
+ * first, mapped to the sidebar's `Project` shape. Accepts the user's full set of
+ * verified emails since an invite may target a secondary address. Emails are
+ * stored lowercased, so the lookup lowercases its arguments to match.
  */
-export async function listSharedProjects(email: string): Promise<Project[]> {
+export async function listSharedProjects(
+  emails: string[]
+): Promise<Project[]> {
+  if (emails.length === 0) {
+    return [];
+  }
+
   const projects = await prisma.project.findMany({
-    where: { collaborators: { some: { email } } },
+    where: {
+      collaborators: {
+        some: { email: { in: emails.map((email) => email.toLowerCase()) } },
+      },
+    },
     orderBy: { createdAt: "desc" },
     select: { id: true, name: true },
   });
 
   return projects.map((project) => toProject(project, "shared"));
+}
+
+/**
+ * Returns whether `userId` owns the project. Used to gate collaborator invite
+ * and removal, which are owner-only.
+ */
+export async function isProjectOwner(
+  projectId: string,
+  userId: string
+): Promise<boolean> {
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, ownerId: userId },
+    select: { id: true },
+  });
+
+  return project !== null;
+}
+
+/**
+ * Extracts and normalizes a collaborator `email` from an unvalidated request
+ * body: trimmed, lowercased, and shape-checked. Returns `undefined` when absent
+ * or not a plausible email.
+ */
+export function parseCollaboratorEmail(body: unknown): string | undefined {
+  if (body && typeof body === "object" && "email" in body) {
+    const { email } = body as { email: unknown };
+    if (typeof email === "string") {
+      const normalized = email.trim().toLowerCase();
+      if (EMAIL_PATTERN.test(normalized)) {
+        return normalized;
+      }
+    }
+  }
+
+  return undefined;
 }
 
 /**

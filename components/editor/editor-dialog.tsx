@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { cn } from "@/lib/utils"
 
 interface EditorDialogProps {
   open: boolean
@@ -18,6 +19,8 @@ interface EditorDialogProps {
   description?: string
   footer?: ReactNode
   children?: ReactNode
+  /** Extra classes for the dialog surface (e.g. a wider max-width). */
+  className?: string
 }
 
 /**
@@ -32,10 +35,16 @@ export function EditorDialog({
   description,
   footer,
   children,
+  className,
 }: EditorDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-3xl border border-surface-border bg-surface text-copy-primary">
+      <DialogContent
+        className={cn(
+          "rounded-3xl border border-surface-border bg-surface text-copy-primary",
+          className
+        )}
+      >
         <DialogHeader>
           <DialogTitle className="text-copy-primary">{title}</DialogTitle>
           {description ? (

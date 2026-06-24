@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { MoreHorizontal, Pencil, Plus, Trash2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -19,6 +20,8 @@ interface ProjectSidebarProps {
   onClose: () => void
   ownedProjects: Project[]
   sharedProjects: Project[]
+  /** ID of the project whose workspace is currently open, highlighted in the list. */
+  currentProjectId?: string
   onCreateProject: () => void
   onRenameProject: (project: Project) => void
   onDeleteProject: (project: Project) => void
@@ -29,10 +32,19 @@ export function ProjectSidebar({
   onClose,
   ownedProjects,
   sharedProjects,
+  currentProjectId,
   onCreateProject,
   onRenameProject,
   onDeleteProject,
 }: ProjectSidebarProps) {
+  // Open the tab that holds the active room so its highlight is visible — a
+  // collaborator landing on a shared room should start on the Shared tab.
+  const initialTab =
+    currentProjectId &&
+    sharedProjects.some((project) => project.id === currentProjectId)
+      ? "shared"
+      : "my-projects"
+
   return (
     <>
       {/* Mobile-only backdrop scrim — tapping outside closes the sidebar. */}
@@ -67,7 +79,8 @@ export function ProjectSidebar({
         </div>
 
         <Tabs
-          defaultValue="my-projects"
+          key={initialTab}
+          defaultValue={initialTab}
           className="flex flex-1 flex-col gap-0 overflow-hidden p-4"
         >
           <TabsList className="w-full shrink-0">
@@ -85,6 +98,7 @@ export function ProjectSidebar({
                     <ProjectItem
                       key={project.id}
                       project={project}
+                      isActive={project.id === currentProjectId}
                       onRename={onRenameProject}
                       onDelete={onDeleteProject}
                     />
@@ -101,7 +115,11 @@ export function ProjectSidebar({
               ) : (
                 <ul className="flex flex-col gap-1">
                   {sharedProjects.map((project) => (
-                    <ProjectItem key={project.id} project={project} />
+                    <ProjectItem
+                      key={project.id}
+                      project={project}
+                      isActive={project.id === currentProjectId}
+                    />
                   ))}
                 </ul>
               )}
@@ -122,19 +140,32 @@ export function ProjectSidebar({
 
 interface ProjectItemProps {
   project: Project
+  isActive?: boolean
   onRename?: (project: Project) => void
   onDelete?: (project: Project) => void
 }
 
-function ProjectItem({ project, onRename, onDelete }: ProjectItemProps) {
+function ProjectItem({ project, isActive, onRename, onDelete }: ProjectItemProps) {
   // Actions are only shown for owned projects (those passed handlers).
   const hasActions = Boolean(onRename && onDelete)
 
   return (
-    <li className="group/item flex items-center gap-1 rounded-xl px-2.5 py-2 transition-colors hover:bg-elevated">
-      <span className="min-w-0 flex-1 truncate text-sm text-copy-secondary">
+    <li
+      className={cn(
+        "group/item flex items-center gap-1 rounded-xl px-2.5 py-2 transition-colors hover:bg-elevated",
+        isActive && "bg-elevated"
+      )}
+    >
+      <Link
+        href={`/editor/${project.id}`}
+        aria-current={isActive ? "page" : undefined}
+        className={cn(
+          "min-w-0 flex-1 truncate text-sm transition-colors hover:text-copy-primary",
+          isActive ? "text-copy-primary" : "text-copy-secondary"
+        )}
+      >
         {project.name}
-      </span>
+      </Link>
 
       {hasActions ? (
         <DropdownMenu>
