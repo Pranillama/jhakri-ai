@@ -4,10 +4,12 @@ import { useState } from "react"
 import { X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { CanvasRoom } from "@/components/editor/canvas/canvas-room"
 import { EditorNavbar } from "@/components/editor/editor-navbar"
 import { ProjectDialogs } from "@/components/editor/project-dialogs"
 import { ProjectSidebar } from "@/components/editor/project-sidebar"
 import { ShareDialog } from "@/components/editor/share-dialog"
+import { cn } from "@/lib/utils"
 import { useProjectDialogs } from "@/hooks/use-project-dialogs"
 import type { Project, ProjectOwnership } from "@/types/project"
 
@@ -61,11 +63,12 @@ export function EditorRoomShell({
           onDeleteProject={dialogs.openDelete}
         />
 
-        <CanvasPlaceholder />
+        <CanvasRoom roomId={roomId} />
 
-        {aiSidebarOpen ? (
-          <AiSidebar onClose={() => setAiSidebarOpen(false)} />
-        ) : null}
+        <AiSidebar
+          isOpen={aiSidebarOpen}
+          onClose={() => setAiSidebarOpen(false)}
+        />
       </div>
 
       <ProjectDialogs dialogs={dialogs} />
@@ -81,21 +84,17 @@ export function EditorRoomShell({
   )
 }
 
-/** Central canvas area — fills the remaining space until the real canvas lands. */
-function CanvasPlaceholder() {
-  return (
-    <div className="flex flex-1 items-center justify-center bg-base px-6 text-center">
-      <p className="text-sm text-copy-muted">
-        The collaborative canvas will appear here.
-      </p>
-    </div>
-  )
-}
-
 /** Right-hand placeholder panel reserved for the future AI chat. */
-function AiSidebar({ onClose }: { onClose: () => void }) {
+function AiSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   return (
-    <aside className="flex w-80 shrink-0 flex-col border-l border-surface-border bg-surface">
+    <aside
+      aria-hidden={!isOpen}
+      inert={!isOpen}
+      className={cn(
+        "absolute inset-y-0 right-0 z-40 flex w-80 flex-col border-l border-surface-border bg-surface/95 backdrop-blur-sm transition-transform duration-200 ease-out",
+        isOpen ? "translate-x-0" : "translate-x-full"
+      )}
+    >
       <div className="flex shrink-0 items-center justify-between border-b border-surface-border px-4 py-3">
         <h2 className="text-sm font-medium text-copy-primary">AI Assistant</h2>
         <Button

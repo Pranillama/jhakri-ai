@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
+
+# ephemeral issue-reporting artifacts
+context/current-issue.md
+context/screenshots/
