@@ -54,5 +54,14 @@ export type CanvasNodeData = {
 /** Custom React Flow node type used across the canvas. */
 export type CanvasNode = Node<CanvasNodeData, "canvasNode">
 
+/**
+ * Data carried by a canvas edge. Declared as a type alias (not an interface) so
+ * it satisfies React Flow's `Record<string, unknown>` edge-data constraint.
+ */
+export type CanvasEdgeData = {
+  /** Optional inline label rendered along the edge. */
+  label?: string
+}
+
 /** Custom React Flow edge type used across the canvas. */
-export type CanvasEdge = Edge<Record<string, unknown>, "canvasEdge">
+export type CanvasEdge = Edge<CanvasEdgeData, "canvasEdge">
