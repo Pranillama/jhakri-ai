@@ -38,6 +38,7 @@ export function EditorRoomShell({
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [aiSidebarOpen, setAiSidebarOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
+  const [templatesOpen, setTemplatesOpen] = useState(false)
   const dialogs = useProjectDialogs()
 
   return (
@@ -49,6 +50,7 @@ export function EditorRoomShell({
         aiSidebarOpen={aiSidebarOpen}
         onToggleAiSidebar={() => setAiSidebarOpen((open) => !open)}
         onShare={() => setShareOpen(true)}
+        onOpenTemplates={() => setTemplatesOpen(true)}
       />
 
       <div className="relative flex flex-1 overflow-hidden">
@@ -63,7 +65,11 @@ export function EditorRoomShell({
           onDeleteProject={dialogs.openDelete}
         />
 
-        <CanvasRoom roomId={roomId} />
+        <CanvasRoom
+          roomId={roomId}
+          templatesOpen={templatesOpen}
+          onTemplatesOpenChange={setTemplatesOpen}
+        />
 
         <AiSidebar
           isOpen={aiSidebarOpen}

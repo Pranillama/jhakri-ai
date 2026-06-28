@@ -13,6 +13,10 @@ import { CanvasErrorBoundary } from "./canvas-error-boundary"
 interface CanvasRoomProps {
   /** Liveblocks room ID — equal to the project ID. */
   roomId: string
+  /** Whether the starter templates modal is open. */
+  templatesOpen: boolean
+  /** Toggles the starter templates modal. */
+  onTemplatesOpenChange: (open: boolean) => void
 }
 
 /**
@@ -21,7 +25,11 @@ interface CanvasRoomProps {
  * React Flow canvas once Storage is ready — with a loading state while
  * connecting and an error fallback if the connection fails.
  */
-export function CanvasRoom({ roomId }: CanvasRoomProps) {
+export function CanvasRoom({
+  roomId,
+  templatesOpen,
+  onTemplatesOpenChange,
+}: CanvasRoomProps) {
   return (
     <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
       <RoomProvider
@@ -32,7 +40,10 @@ export function CanvasRoom({ roomId }: CanvasRoomProps) {
           <CanvasErrorBoundary>
             <ClientSideSuspense fallback={<CanvasLoading />}>
               <ReactFlowProvider>
-                <Canvas />
+                <Canvas
+                  templatesOpen={templatesOpen}
+                  onTemplatesOpenChange={onTemplatesOpenChange}
+                />
               </ReactFlowProvider>
             </ClientSideSuspense>
           </CanvasErrorBoundary>
