@@ -7,6 +7,8 @@ import {
 } from "@liveblocks/react/suspense"
 import { ReactFlowProvider } from "@xyflow/react"
 
+import type { SaveStatus } from "@/hooks/use-canvas-autosave"
+
 import { Canvas } from "./canvas"
 import { CanvasErrorBoundary } from "./canvas-error-boundary"
 
@@ -17,6 +19,10 @@ interface CanvasRoomProps {
   templatesOpen: boolean
   /** Toggles the starter templates modal. */
   onTemplatesOpenChange: (open: boolean) => void
+  /** Reports autosave status up to the navbar's save button. */
+  onSaveStatusChange: (status: SaveStatus) => void
+  /** Registers the manual-save function so the navbar's Save button can call it. */
+  onRegisterSave: (save: () => void) => void
 }
 
 /**
@@ -29,20 +35,25 @@ export function CanvasRoom({
   roomId,
   templatesOpen,
   onTemplatesOpenChange,
+  onSaveStatusChange,
+  onRegisterSave,
 }: CanvasRoomProps) {
   return (
     <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
       <RoomProvider
         id={roomId}
-        initialPresence={{ cursor: null, isThinking: false }}
+        initialPresence={{ cursor: null, thinking: false }}
       >
         <div className="relative flex-1 bg-base">
           <CanvasErrorBoundary>
             <ClientSideSuspense fallback={<CanvasLoading />}>
               <ReactFlowProvider>
                 <Canvas
+                  projectId={roomId}
                   templatesOpen={templatesOpen}
                   onTemplatesOpenChange={onTemplatesOpenChange}
+                  onSaveStatusChange={onSaveStatusChange}
+                  onRegisterSave={onRegisterSave}
                 />
               </ReactFlowProvider>
             </ClientSideSuspense>

@@ -9,13 +9,19 @@ import {
 } from "lucide-react"
 import { UserButton } from "@clerk/nextjs"
 
+import { SaveButton } from "@/components/editor/save-button"
 import { Button } from "@/components/ui/button"
+import type { SaveStatus } from "@/hooks/use-canvas-autosave"
 
 interface EditorNavbarProps {
   sidebarOpen: boolean
   onToggleSidebar: () => void
   /** Name of the open project, shown centered. Omitted on the editor home. */
   projectName?: string
+  /** Canvas autosave status, shown by the Save button. Omitted on the editor home. */
+  saveStatus?: SaveStatus
+  /** Triggers a manual save through the same save function autosave uses. */
+  onSave?: () => void
   /** Whether the AI sidebar is open; controls the toggle's pressed state. */
   aiSidebarOpen?: boolean
   /**
@@ -33,14 +39,16 @@ export function EditorNavbar({
   sidebarOpen,
   onToggleSidebar,
   projectName,
+  saveStatus,
+  onSave,
   aiSidebarOpen,
   onToggleAiSidebar,
   onShare,
   onOpenTemplates,
 }: EditorNavbarProps) {
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-surface-border bg-surface px-3">
-      <div className="flex items-center gap-2">
+    <header className="flex h-14 shrink-0 items-center gap-4 border-b border-surface-border bg-surface px-3">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
         <Button
           variant="ghost"
           size="icon"
@@ -53,9 +61,6 @@ export function EditorNavbar({
             <PanelLeftOpen className="h-5 w-5" />
           )}
         </Button>
-      </div>
-
-      <div className="flex flex-1 items-center justify-center px-4">
         {projectName ? (
           <span className="truncate text-sm font-medium text-copy-primary">
             {projectName}
@@ -63,9 +68,12 @@ export function EditorNavbar({
         ) : null}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         {onToggleAiSidebar ? (
           <>
+            {saveStatus ? (
+              <SaveButton status={saveStatus} onSave={() => onSave?.()} />
+            ) : null}
             {onOpenTemplates ? (
               <Button
                 variant="ghost"
@@ -98,8 +106,12 @@ export function EditorNavbar({
               <Sparkles className="h-5 w-5" />
             </Button>
           </>
-        ) : null}
-        <UserButton />
+        ) : (
+          // Editor home has no workspace actions and no in-canvas presence
+          // group, so the UserButton stays in the navbar. Inside the canvas
+          // view it moves into the presence avatar stack.
+          <UserButton />
+        )}
       </div>
     </header>
   )

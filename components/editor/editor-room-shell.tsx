@@ -1,15 +1,14 @@
 "use client"
 
-import { useState } from "react"
-import { X } from "lucide-react"
+import { useCallback, useRef, useState } from "react"
 
-import { Button } from "@/components/ui/button"
+import { AiSidebar } from "@/components/editor/ai-sidebar"
 import { CanvasRoom } from "@/components/editor/canvas/canvas-room"
 import { EditorNavbar } from "@/components/editor/editor-navbar"
 import { ProjectDialogs } from "@/components/editor/project-dialogs"
 import { ProjectSidebar } from "@/components/editor/project-sidebar"
 import { ShareDialog } from "@/components/editor/share-dialog"
-import { cn } from "@/lib/utils"
+import type { SaveStatus } from "@/hooks/use-canvas-autosave"
 import { useProjectDialogs } from "@/hooks/use-project-dialogs"
 import type { Project, ProjectOwnership } from "@/types/project"
 
@@ -25,8 +24,8 @@ interface EditorRoomShellProps {
 /**
  * Full-viewport workspace shell for an open project room. Holds the left
  * sidebar and right AI-sidebar open state plus the shared project-dialog hook,
- * and lays out the navbar, project sidebar, central canvas placeholder, and AI
- * sidebar placeholder. No canvas, Liveblocks, AI, or sharing logic yet.
+ * and lays out the navbar, project sidebar, collaborative canvas, and the
+ * floating AI sidebar. AI generation logic is not wired yet.
  */
 export function EditorRoomShell({
   roomId,
@@ -39,7 +38,17 @@ export function EditorRoomShell({
   const [aiSidebarOpen, setAiSidebarOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [templatesOpen, setTemplatesOpen] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle")
   const dialogs = useProjectDialogs()
+
+  // The manual save function lives inside the Liveblocks room (Canvas), which
+  // sits below this shell — Canvas registers it here via a ref so the
+  // navbar's Save button (outside the room) can call the exact same save the
+  // autosave hook uses.
+  const saveRef = useRef<() => void>(() => {})
+  const handleRegisterSave = useCallback((save: () => void) => {
+    saveRef.current = save
+  }, [])
 
   return (
     <div className="flex h-dvh flex-col bg-base">
@@ -47,6 +56,8 @@ export function EditorRoomShell({
         sidebarOpen={sidebarOpen}
         onToggleSidebar={() => setSidebarOpen((open) => !open)}
         projectName={projectName}
+        saveStatus={saveStatus}
+        onSave={() => saveRef.current()}
         aiSidebarOpen={aiSidebarOpen}
         onToggleAiSidebar={() => setAiSidebarOpen((open) => !open)}
         onShare={() => setShareOpen(true)}
@@ -69,6 +80,8 @@ export function EditorRoomShell({
           roomId={roomId}
           templatesOpen={templatesOpen}
           onTemplatesOpenChange={setTemplatesOpen}
+          onSaveStatusChange={setSaveStatus}
+          onRegisterSave={handleRegisterSave}
         />
 
         <AiSidebar
@@ -87,34 +100,5 @@ export function EditorRoomShell({
         canManage={ownership === "owned"}
       />
     </div>
-  )
-}
-
-/** Right-hand placeholder panel reserved for the future AI chat. */
-function AiSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  return (
-    <aside
-      aria-hidden={!isOpen}
-      inert={!isOpen}
-      className={cn(
-        "absolute inset-y-0 right-0 z-40 flex w-80 flex-col border-l border-surface-border bg-surface/95 backdrop-blur-sm transition-transform duration-200 ease-out",
-        isOpen ? "translate-x-0" : "translate-x-full"
-      )}
-    >
-      <div className="flex shrink-0 items-center justify-between border-b border-surface-border px-4 py-3">
-        <h2 className="text-sm font-medium text-copy-primary">AI Assistant</h2>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={onClose}
-          aria-label="Close AI sidebar"
-        >
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-      <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-copy-muted">
-        AI chat coming soon.
-      </div>
-    </aside>
   )
 }
