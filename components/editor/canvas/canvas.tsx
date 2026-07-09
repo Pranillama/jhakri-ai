@@ -142,6 +142,8 @@ export function Canvas({
             fitLoadedView()
           }
         }
+      } catch (error) {
+        console.error("Failed to load saved canvas", error)
       } finally {
         setReadyForAutosave(true)
       }
