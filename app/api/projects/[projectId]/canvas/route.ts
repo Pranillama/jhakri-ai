@@ -64,23 +64,30 @@ export async function PUT(request: Request, { params }: RouteContext) {
     );
   }
 
-  const blob = await put(
-    `canvas/${projectId}.json`,
-    JSON.stringify(payload),
-    {
-      access: "private",
-      contentType: "application/json",
-      addRandomSuffix: false,
-      allowOverwrite: true,
-    }
-  );
+  try {
+    const blob = await put(
+      `canvas/${projectId}.json`,
+      JSON.stringify(payload),
+      {
+        access: "private",
+        contentType: "application/json",
+        addRandomSuffix: false,
+        allowOverwrite: true,
+      }
+    );
 
-  await prisma.project.update({
-    where: { id: projectId },
-    data: { canvasJsonPath: blob.url },
-  });
+    await prisma.project.update({
+      where: { id: projectId },
+      data: { canvasJsonPath: blob.url },
+    });
 
-  return NextResponse.json({ url: blob.url });
+    return NextResponse.json({ url: blob.url });
+  } catch {
+    return NextResponse.json(
+      { error: "Failed to save canvas" },
+      { status: 500 }
+    );
+  }
 }
 
 /**
@@ -111,11 +118,18 @@ export async function GET(_request: Request, { params }: RouteContext) {
     return NextResponse.json({ nodes: [], edges: [] });
   }
 
-  const blob = await get(record.canvasJsonPath, { access: "private" });
-  if (!blob?.stream) {
+  // A missing or corrupted blob (deleted underneath us, transient store
+  // error, or non-JSON content) is treated the same as "nothing saved": the
+  // load path can't throw a 500, matching the empty-graph contract above.
+  try {
+    const blob = await get(record.canvasJsonPath, { access: "private" });
+    if (!blob?.stream) {
+      return NextResponse.json({ nodes: [], edges: [] });
+    }
+
+    const saved = parseCanvasPayload(await new Response(blob.stream).json());
+    return NextResponse.json(saved ?? { nodes: [], edges: [] });
+  } catch {
     return NextResponse.json({ nodes: [], edges: [] });
   }
-
-  const saved = parseCanvasPayload(await new Response(blob.stream).json());
-  return NextResponse.json(saved ?? { nodes: [], edges: [] });
 }

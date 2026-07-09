@@ -55,6 +55,12 @@ export function useCanvasAutosave({
   }, [nodes, edges])
 
   const save = useCallback(async () => {
+    // Never save before the initial load-or-skip decision has resolved: the
+    // room may still hold the empty pre-load state, and PUTting that would
+    // overwrite a previously persisted canvas. The debounce path gates on
+    // this too; guard here so a manual Save click can't bypass it.
+    if (!enabled) return
+
     if (debounceRef.current) {
       clearTimeout(debounceRef.current)
       debounceRef.current = null
@@ -79,7 +85,7 @@ export function useCanvasAutosave({
     } finally {
       resetRef.current = setTimeout(() => setStatus("idle"), STATUS_RESET_MS)
     }
-  }, [projectId])
+  }, [projectId, enabled])
 
   useEffect(() => {
     if (!enabled) return
