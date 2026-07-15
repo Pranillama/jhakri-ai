@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ghost AI",
+  title: "Jhakri AI",
   description: "Real-time collaborative system design workspace.",
 };
 

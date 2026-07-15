@@ -10,12 +10,12 @@ Override Clerk appearance variables using the app’s existing CSS variables. Do
 
 - large screens: two-panel layout
 - left panel (top to bottom):
-  - compact logo + "Ghost AI" wordmark
+  - compact logo + "Jhakri AI" wordmark
   - small uppercase badge pill: `AI-POWERED · REAL-TIME · COLLABORATIVE`
   - large hero heading, with the final word in solid accent color
   - short tagline paragraph
   - feature list: rows of `icon chip + title + one-line description` (icon sits in a soft `brand-dim` rounded chip; the row itself is not a card)
-  - muted footer line: `© <year> Ghost AI`
+  - muted footer line: `© <year> Jhakri AI`
 - right: centered Clerk form with light `appearance.elements` polish — flatten Clerk's default card (no border/shadow) so it sits cleanly on the panel, and tidy the social/submit buttons. Keep Clerk's flow and internals intact; do not restructure the form.
 - small screens: form only (left panel hidden)
 - no gradients

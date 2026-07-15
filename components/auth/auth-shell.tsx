@@ -36,7 +36,7 @@ export function AuthShell({ children }: AuthShellProps) {
       <section className="hidden flex-1 flex-col justify-between border-r border-surface-border px-14 py-14 lg:flex">
         <div className="flex items-center gap-2.5">
           <Ghost className="h-6 w-6 text-brand" />
-          <span className="text-lg font-semibold text-copy-primary">Ghost AI</span>
+          <span className="text-lg font-semibold text-copy-primary">Jhakri AI</span>
         </div>
 
         <div className="flex flex-col gap-9">
@@ -50,7 +50,7 @@ export function AuthShell({ children }: AuthShellProps) {
           </h1>
 
           <p className="max-w-lg text-base leading-relaxed text-copy-secondary">
-            Describe your architecture in plain English. Ghost AI maps it to a shared
+            Describe your architecture in plain English. Jhakri AI maps it to a shared
             canvas your whole team can refine in real time.
           </p>
 
@@ -69,7 +69,7 @@ export function AuthShell({ children }: AuthShellProps) {
           </ul>
         </div>
 
-        <p className="text-xs text-copy-faint">© {year} Ghost AI</p>
+        <p className="text-xs text-copy-faint">© {year} Jhakri AI</p>
       </section>
 
       <section className="flex flex-1 items-center justify-center px-6 py-16">
