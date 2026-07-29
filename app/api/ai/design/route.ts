@@ -7,12 +7,13 @@ import type { designAgent } from "@/trigger/design-agent";
 
 /**
  * Validated request body for a design generation trigger: the user's design
- * prompt plus the project/room context needed to trigger the task and record
- * ownership of the run.
+ * prompt plus the project the run is scoped to. The room the agent operates on
+ * is never taken from the client — it is derived from the access-checked
+ * project below, so a caller can't point the agent at a room outside a
+ * project they were actually authorized for.
  */
 interface DesignRequest {
   prompt: string;
-  roomId: string;
   projectId: string;
 }
 
@@ -22,26 +23,21 @@ function parseDesignRequest(body: unknown): DesignRequest | undefined {
     return undefined;
   }
 
-  const { prompt, roomId, projectId } = body as {
+  const { prompt, projectId } = body as {
     prompt?: unknown;
-    roomId?: unknown;
     projectId?: unknown;
   };
 
-  if (
-    typeof prompt !== "string" ||
-    typeof roomId !== "string" ||
-    typeof projectId !== "string"
-  ) {
+  if (typeof prompt !== "string" || typeof projectId !== "string") {
     return undefined;
   }
 
   const trimmedPrompt = prompt.trim();
-  if (!trimmedPrompt || !roomId || !projectId) {
+  if (!trimmedPrompt || !projectId) {
     return undefined;
   }
 
-  return { prompt: trimmedPrompt, roomId, projectId };
+  return { prompt: trimmedPrompt, projectId };
 }
 
 /**
@@ -80,7 +76,10 @@ export async function POST(request: Request) {
   try {
     const handle = await tasks.trigger<typeof designAgent>("design-agent", {
       prompt: payload.prompt,
-      roomId: payload.roomId,
+      // The room ID is the project ID (see architecture context); derive it
+      // from the access-checked `project`, never from client input, so the
+      // agent can never be pointed at a room outside the authorized project.
+      roomId: project.id,
     });
 
     try {

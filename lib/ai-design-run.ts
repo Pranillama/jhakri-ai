@@ -60,7 +60,7 @@ export async function startDesignRun({
   const triggerResponse = await fetch("/api/ai/design", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, roomId, projectId: roomId }),
+    body: JSON.stringify({ prompt, projectId: roomId }),
   });
 
   if (!triggerResponse.ok) {

@@ -2,7 +2,7 @@ import { auth as triggerAuth } from "@trigger.dev/sdk";
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentIdentity } from "@/lib/project-access";
+import { getAccessibleProject, getCurrentIdentity } from "@/lib/project-access";
 
 /** Extracts a `runId` string from an unvalidated request body. */
 function parseRunId(body: unknown): string | undefined {
@@ -43,10 +43,18 @@ export async function POST(request: Request) {
 
   const taskRun = await prisma.taskRun.findUnique({
     where: { runId },
-    select: { userId: true },
+    select: { userId: true, projectId: true },
   });
 
   if (!taskRun || taskRun.userId !== identity.userId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Re-check project access at token-mint time, not just run ownership: if the
+  // caller's access to the project was revoked after starting the run, they
+  // should lose the ability to keep watching it.
+  const project = await getAccessibleProject(taskRun.projectId, identity);
+  if (!project) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
