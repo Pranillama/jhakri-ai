@@ -10,7 +10,11 @@ import {
 } from "lucide-react"
 import { useRef, type DragEvent } from "react"
 
-import { DEFAULT_NODE_COLOR, type NodeShape } from "@/types/canvas"
+import {
+  DEFAULT_NODE_COLOR,
+  DEFAULT_SHAPE_SIZES,
+  type NodeShape,
+} from "@/types/canvas"
 import { ShapeVisual } from "./shape-visual"
 
 interface ShapeConfig {
@@ -20,14 +24,17 @@ interface ShapeConfig {
   height: number
 }
 
-const SHAPES: ShapeConfig[] = [
-  { shape: "rectangle", icon: Square, width: 200, height: 100 },
-  { shape: "diamond", icon: Diamond, width: 180, height: 180 },
-  { shape: "circle", icon: Circle, width: 120, height: 120 },
-  { shape: "pill", icon: Pill, width: 200, height: 80 },
-  { shape: "cylinder", icon: Database, width: 140, height: 120 },
-  { shape: "hexagon", icon: Hexagon, width: 160, height: 140 },
-]
+/** Panel order, each sized from the shared per-shape defaults. */
+const SHAPES: ShapeConfig[] = (
+  [
+    { shape: "rectangle", icon: Square },
+    { shape: "diamond", icon: Diamond },
+    { shape: "circle", icon: Circle },
+    { shape: "pill", icon: Pill },
+    { shape: "cylinder", icon: Database },
+    { shape: "hexagon", icon: Hexagon },
+  ] as const
+).map(({ shape, icon }) => ({ shape, icon, ...DEFAULT_SHAPE_SIZES[shape] }))
 
 export interface ShapeDragPayload {
   shape: NodeShape

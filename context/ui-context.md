@@ -22,11 +22,14 @@ All colors are defined as CSS custom properties in `globals.css` and mapped to T
 | Brand dim        | `--accent-primary-dim` | `rgba(0, 200, 212, 0.12)` |
 | AI accent        | `--accent-ai`          | `#6457f9` (indigo-purple) |
 | AI text          | `--accent-ai-text`     | `#8b82ff`                 |
+| Agent accent     | `--accent-agent`       | `#62c073` (green)         |
 | Error            | `--state-error`        | `#ff4d4f`                 |
 | Success          | `--state-success`      | `#34d399`                 |
 | Warning          | `--state-warning`      | `#fbbf24`                 |
 
 Tailwind utility names map to these variables. Use `bg-base`, `bg-surface`, `text-copy-primary`, `text-copy-muted`, `border-surface-border`, `text-brand`, `bg-accent-dim`, etc.
+
+Two accents, two jobs. `--accent-ai` (indigo) marks *where* the AI lives — the sidebar chrome, its tabs and icons, the agent's cursor on the canvas. `--accent-agent` (green) marks *acting on* the AI — the prompt composer's submit button, the user's own prompt bubbles, and the run status strip. Note that `--color-base` is not reachable as a text utility (`text-base` is a Tailwind font size); for near-black copy on the green accent, use `text-[color:var(--bg-base)]`.
 
 ## Typography
 
@@ -66,9 +69,35 @@ Radius increases with surface depth — smaller for inner elements, larger for o
 
 Default node color: `#1F1F1F` with `#EDEDED` text.
 
+### Node Sizes
+
+Each shape has a default render size, defined in `types/canvas.ts` as `DEFAULT_SHAPE_SIZES`. Every path that creates a node — dragging from the shape panel, importing a starter template, and AI generation — uses these, so nodes look the same however they were created.
+
+| Shape     | Size      |
+| --------- | --------- |
+| rectangle | 200 × 100 |
+| diamond   | 180 × 180 |
+| circle    | 120 × 120 |
+| pill      | 200 × 80  |
+| cylinder  | 140 × 120 |
+| hexagon   | 160 × 140 |
+
 ### Edge Style
 
-Smooth-step path with an arrow marker. Default edge color: `#f8fafc`. Stroke width is thin — edges are visually secondary to nodes.
+Smooth-step path with an arrow marker. Default edge color: `#f8fafc` (`EDGE_STROKE` in `types/canvas.ts`, with the shared arrow marker as `DEFAULT_EDGE_MARKER`). Stroke width is thin — edges are visually secondary to nodes.
+
+### AI Presence on the Canvas
+
+The AI design agent joins the room as a participant while a generation runs, so it needs no separate UI surface:
+
+- **Cursor** — rendered by the same live-cursor component as human collaborators, in the AI accent color (`--accent-ai`), with a small spinner next to the name badge while its `thinking` presence flag is set. Any participant with `thinking: true` gets the spinner; a participant without the flag gets nothing.
+- **Avatar** — appears in the top-right presence stack like any other participant, falling back to an initial-letter circle.
+- **Status banner** — a pill pinned to the top-center of the canvas showing the current run message, read from the shared `ai-status-feed` so every participant sees the same text. Sparkles/spinner icon while running, success or error state on finish, then it clears itself after a few seconds.
+- **AI sidebar composer** — while a run is in progress, the AI Architect tab shows the same feed message as a compact status strip above the input (dark base, green spinner), disables the textarea, and swaps the send icon for a spinner. Only the composer is affected: the tabs, the Specs tab, and the conversation stay usable, and the sidebar is never dimmed or blocked as a whole. The strip also covers the gap before the feed's first message, reading "Starting the design run…" until the task publishes.
+
+### AI Sidebar Chat
+
+The AI Architect tab is one conversation on the shared `ai-chat` feed, so every participant reads the same thread. Bubble colour is decided by `role` and side by sender: human prompts sit on the green agent accent, the agent's closing replies on `bg-elevated` with a border and always on the left, and a bubble aligns right only when it is the current user's own prompt. Sender name and local time sit above each bubble.
 
 ### Node Shapes
 

@@ -1,10 +1,6 @@
 "use client"
 
-import {
-  ClientSideSuspense,
-  LiveblocksProvider,
-  RoomProvider,
-} from "@liveblocks/react/suspense"
+import { ClientSideSuspense } from "@liveblocks/react/suspense"
 import { ReactFlowProvider } from "@xyflow/react"
 
 import type { SaveStatus } from "@/hooks/use-canvas-autosave"
@@ -26,10 +22,13 @@ interface CanvasRoomProps {
 }
 
 /**
- * Connects the canvas to its Liveblocks room. Authenticates through
- * `/api/liveblocks-auth`, joins the room for this project, and renders the
- * React Flow canvas once Storage is ready — with a loading state while
- * connecting and an error fallback if the connection fails.
+ * Renders the React Flow canvas for the room the shell has already joined —
+ * with a loading state while the realtime connection settles and an error
+ * fallback if it fails, so a connection problem is isolated to the canvas
+ * instead of taking down the workspace around it.
+ *
+ * The room itself is entered one level up (`EditorRoomShell`), because the AI
+ * sidebar is a sibling of this component and shares the same room.
  */
 export function CanvasRoom({
   roomId,
@@ -39,28 +38,21 @@ export function CanvasRoom({
   onRegisterSave,
 }: CanvasRoomProps) {
   return (
-    <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
-      <RoomProvider
-        id={roomId}
-        initialPresence={{ cursor: null, thinking: false }}
-      >
-        <div className="relative flex-1 bg-base">
-          <CanvasErrorBoundary>
-            <ClientSideSuspense fallback={<CanvasLoading />}>
-              <ReactFlowProvider>
-                <Canvas
-                  projectId={roomId}
-                  templatesOpen={templatesOpen}
-                  onTemplatesOpenChange={onTemplatesOpenChange}
-                  onSaveStatusChange={onSaveStatusChange}
-                  onRegisterSave={onRegisterSave}
-                />
-              </ReactFlowProvider>
-            </ClientSideSuspense>
-          </CanvasErrorBoundary>
-        </div>
-      </RoomProvider>
-    </LiveblocksProvider>
+    <div className="relative flex-1 bg-base">
+      <CanvasErrorBoundary>
+        <ClientSideSuspense fallback={<CanvasLoading />}>
+          <ReactFlowProvider>
+            <Canvas
+              projectId={roomId}
+              templatesOpen={templatesOpen}
+              onTemplatesOpenChange={onTemplatesOpenChange}
+              onSaveStatusChange={onSaveStatusChange}
+              onRegisterSave={onRegisterSave}
+            />
+          </ReactFlowProvider>
+        </ClientSideSuspense>
+      </CanvasErrorBoundary>
+    </div>
   )
 }
 

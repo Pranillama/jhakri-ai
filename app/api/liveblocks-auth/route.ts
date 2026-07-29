@@ -1,8 +1,9 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-import { getLiveblocks, getUserColor } from "@/lib/liveblocks";
+import { ensureFeed, getLiveblocks, getUserColor } from "@/lib/liveblocks";
 import { getAccessibleProject, getCurrentIdentity } from "@/lib/project-access";
+import { AI_CHAT_FEED_ID } from "@/types/tasks";
 
 /** Extracts the Liveblocks room ID from the auth request body. */
 function parseRoomId(body: unknown): string | undefined {
@@ -60,6 +61,11 @@ export async function POST(request: Request) {
   // Ensure the room exists before connecting; private by default since the
   // session token below grants the verified user explicit access.
   await liveblocks.getOrCreateRoom(roomId, { defaultAccesses: [] });
+
+  // The chat feed has no backend task to lazily create it (unlike
+  // `ai-status-feed`, created by the first AI run), so it's ensured here —
+  // on every join, idempotently — so the sidebar can always subscribe and send.
+  await ensureFeed(liveblocks, roomId, AI_CHAT_FEED_ID);
 
   const session = liveblocks.prepareSession(identity.userId, {
     userInfo: { name, avatar, color },

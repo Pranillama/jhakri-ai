@@ -61,6 +61,7 @@
     --color-brand-dim: var(--accent-primary-dim);
     --color-ai: var(--accent-ai);
     --color-ai-text: var(--accent-ai-text);
+    --color-agent: var(--accent-agent);
     --color-error: var(--state-error);
     --color-success: var(--state-success);
     --color-warning: var(--state-warning);
@@ -81,6 +82,7 @@
     --accent-primary-dim: rgba(0, 200, 212, 0.12);
     --accent-ai: #6457f9;
     --accent-ai-text: #8b82ff;
+    --accent-agent: #62c073;
     --state-error: #ff4d4f;
     --state-success: #34d399;
     --state-warning: #fbbf24;

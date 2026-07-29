@@ -1,3 +1,5 @@
+import type { AiStatusMessage, ChatMessage } from "@/types/tasks";
+
 // Define Liveblocks types for your application
 // https://liveblocks.io/docs/api-reference/liveblocks-react#Typing-your-data
 declare global {
@@ -11,7 +13,16 @@ declare global {
     };
 
     // The Storage tree for the room, for useMutation, useStorage, etc.
+    // Nothing in this app reads Storage directly: the canvas graph lives under
+    // a `flow` key owned and typed by `@liveblocks/react-flow`
+    // (`useLiveblocksFlow` on the client, `mutateFlow` on the server), and
+    // that package is the source of truth for the subtree's shape.
     Storage: Record<string, never>;
+
+    // Data carried by feed messages, for useFeedMessages. A union because two
+    // feeds exist (`ai-status-feed` and `ai-chat`) and each consumer validates
+    // with the schema for the feed it actually subscribed to.
+    FeedMessageData: AiStatusMessage | ChatMessage;
 
     // Custom user info attached to the session token when authenticating.
     UserMeta: {

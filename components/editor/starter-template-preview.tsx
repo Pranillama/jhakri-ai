@@ -3,7 +3,7 @@ import {
   NODE_COLORS,
   type CanvasNode,
 } from "@/types/canvas"
-import { EDGE_STROKE } from "./canvas/canvas-edge"
+import { EDGE_STROKE } from "@/types/canvas"
 import type { CanvasTemplate } from "./starter-templates"
 
 /** Padding (in template coordinate space) around the diagram bounds. */

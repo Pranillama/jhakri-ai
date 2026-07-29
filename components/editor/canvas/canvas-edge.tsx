@@ -16,13 +16,8 @@ import {
   type MouseEvent,
 } from "react"
 
-import type { CanvasEdge, CanvasNode } from "@/types/canvas"
+import { EDGE_STROKE, type CanvasEdge, type CanvasNode } from "@/types/canvas"
 
-/**
- * Default edge stroke — a light, near-white line (documented in
- * `context/ui-context.md`). Kept thin so edges stay visually secondary to nodes.
- */
-export const EDGE_STROKE = "#f8fafc"
 const EDGE_STROKE_WIDTH = 1.5
 /** Wide invisible hit area so edges are easy to hover/click without thickening
  *  the visible line. */

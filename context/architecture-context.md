@@ -50,14 +50,35 @@
 ### Design Generation
 
 - Input: user prompt, project context, and current canvas state.
-- Execution: durable background task via Trigger.dev.
+- Execution: durable background task via Trigger.dev, using Gemini through the Vercel AI SDK.
 - Output: structured node and edge updates written into the shared Liveblocks room.
+- Canvas writes go through `mutateFlow` from `@liveblocks/react-flow/node` — the server-side half of the same collaborative flow API the canvas uses on the client. The task never writes Storage by hand.
+- The agent is a visible participant while it runs. It publishes on two Liveblocks channels:
+  - **Presence** — ephemeral agent presence (cursor position + `thinking` flag) via `Liveblocks.setPresence`, so it renders through the existing cursor and avatar components with no special-casing.
+  - **Feeds** — the shared `ai-status-feed` (see Shared AI Status below), so progress is identical for every participant and survives a reconnect or a mid-run join.
+- Everything the model chooses is drawn from a closed set — a shape name, a palette name, a grid cell, a size name. Pixel values, colors, and positions are computed from those names in code, so the documented shape, color, and spacing rules hold by construction rather than by prompt compliance.
+
+### Shared AI Status
+
+- AI activity is shared room state, not per-client state. Background tasks publish one message per status update into a Liveblocks **feed** named `ai-status-feed` — one feed per room, created on the run's first status update and reused thereafter.
+- The payload schema lives in `types/tasks.ts` and is task-agnostic (`task`, `state`, optional `text`, `runId`), so spec generation publishes into the same feed rather than opening a second channel.
+- Feed messages are untrusted on the read side: every consumer validates before displaying and skips anything that fails.
+- Clients read the feed through one hook (`hooks/use-ai-status.ts`), which exposes only the most recent valid message. The canvas status banner and the AI sidebar's composer both render from it, so they can never disagree about what the AI is doing.
+- The editor shell — not the canvas — joins the Liveblocks room, because the canvas and the AI sidebar are both participants in it.
+
+### Room Chat
+
+- Collaborative chat is shared room state, delivered through its own Liveblocks **feed** named `ai-chat` — kept separate from `ai-status-feed` so a chat message and an AI status update are never mistaken for each other.
+- The `ai-chat` feed has no background task to create it lazily, unlike `ai-status-feed`. It is ensured to exist server-side on every `/api/liveblocks-auth` call (idempotent create, tolerating "already exists"), so the sidebar can always subscribe and send without a race.
+- The payload schema lives in `types/tasks.ts` (`chatMessageSchema`): `sender`, `role`, `content`, `timestamp`. Human prompts use the `"user"` role; design-run summaries and failures use the `"assistant"` role.
+- Feed messages are untrusted on the read side, same rule as the status feed: every consumer validates before displaying and skips anything that fails.
+- Submitting the AI Architect composer publishes the human prompt, starts a design run through `POST /api/ai/design`, and lets the initiating client publish the run's final summary or failure into the feed. Canvas updates still arrive independently through Liveblocks.
 
 ### Spec Generation
 
 - Input: current canvas graph and project context.
 - Execution: durable background task via Trigger.dev.
-- Output: Markdown technical spec saved to the filesystem and linked to the project in the database.
+- Output: Markdown technical spec saved to Vercel Blob and linked to the project through a database record.
 
 ## Invariants
 

@@ -1,5 +1,6 @@
 "use client"
 
+import { Loader2 } from "lucide-react"
 import { ViewportPortal } from "@xyflow/react"
 import {
   shallow,
@@ -36,6 +37,7 @@ function Cursor({ connectionId }: CursorProps) {
     (other) => other.presence.cursor,
     shallow,
   )
+  const thinking = useOther(connectionId, (other) => other.presence.thinking)
   const info = useOther(
     connectionId,
     (other) => ({
@@ -69,10 +71,17 @@ function Cursor({ connectionId }: CursorProps) {
         />
       </svg>
       <span
-        className="ml-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-white shadow-sm"
+        className="ml-1 flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-white shadow-sm"
         style={{ backgroundColor: info.color }}
       >
         {info.name}
+        {/* Spinner while this participant is waiting on an AI run — the design
+            agent publishes its own presence with this flag set. Absent
+            presence reads as falsy, so a participant who never sets `thinking`
+            simply shows no spinner. */}
+        {thinking ? (
+          <Loader2 aria-label="thinking" className="h-3 w-3 animate-spin" />
+        ) : null}
       </span>
     </div>
   )

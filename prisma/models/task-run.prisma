@@ -1,0 +1,12 @@
+// Tracks Trigger.dev background runs so a run can be tied back to the project
+// and user that started it. Ownership is verified against this record before a
+// run-scoped realtime token is issued.
+model TaskRun {
+  id        String   @id @default(cuid())
+  runId     String   @unique
+  projectId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@index([userId, projectId])
+}
