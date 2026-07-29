@@ -32,7 +32,7 @@ test("resolveNodeSize('diamond', 'large') is clamped below its old unclamped 270
   // (180x180 base * 1.5 scale = 270x270) sailed straight through the clamp
   // and overflowed the 240px-tall grid row. Confirm it is now capped well
   // under that, inside the row height.
-  const { width, height } = resolveNodeSize("diamond", "large");
+  const { height } = resolveNodeSize("diamond", "large");
 
   assert.ok(height < 270, `expected height < 270, got ${height}`);
   assert.ok(height < DESIGN_GRID.rowHeight, `expected height < ${DESIGN_GRID.rowHeight}, got ${height}`);
