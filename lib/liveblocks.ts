@@ -1,4 +1,4 @@
-import { Liveblocks } from "@liveblocks/node";
+import { Liveblocks, LiveblocksError } from "@liveblocks/node";
 
 /**
  * Fixed cursor palette. A user ID is mapped deterministically onto one of these
@@ -62,4 +62,27 @@ export function getLiveblocks(): Liveblocks {
   }
 
   return client;
+}
+
+/**
+ * Creates a room feed if it doesn't already exist. Messages can only be added
+ * to a feed that exists, so "create or reuse" is a create whose 409 (already
+ * exists) is the reuse — the same pattern `AiActivityPublisher` uses for
+ * `ai-status-feed`, applied here for feeds that need to exist before a client
+ * ever tries to read or write them.
+ */
+export async function ensureFeed(
+  liveblocks: Liveblocks,
+  roomId: string,
+  feedId: string,
+): Promise<void> {
+  try {
+    await liveblocks.createFeed({ roomId, feedId });
+  } catch (error) {
+    if (error instanceof LiveblocksError && error.status === 409) {
+      return;
+    }
+
+    throw error;
+  }
 }

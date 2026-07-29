@@ -1,13 +1,12 @@
-import { MarkerType } from "@xyflow/react"
-
 import {
+  DEFAULT_EDGE_MARKER,
   DEFAULT_NODE_COLOR,
-  NODE_COLORS,
+  DEFAULT_SHAPE_SIZES,
+  NODE_COLOR_BY_NAME,
   type CanvasEdge,
   type CanvasNode,
   type NodeShape,
 } from "@/types/canvas"
-import { EDGE_STROKE } from "./canvas/canvas-edge"
 
 /**
  * A prebuilt canvas diagram a user can import as a starting point. Templates are
@@ -23,32 +22,18 @@ export interface CanvasTemplate {
 }
 
 /**
- * Default render size per shape, mirroring the shape panel's drag-to-create
- * dimensions so imported nodes match hand-placed ones. Used by the node helper
- * below to keep template definitions free of repeated width/height noise.
- */
-const SHAPE_SIZES: Record<NodeShape, { width: number; height: number }> = {
-  rectangle: { width: 200, height: 100 },
-  diamond: { width: 180, height: 180 },
-  circle: { width: 120, height: 120 },
-  pill: { width: 200, height: 80 },
-  cylinder: { width: 140, height: 120 },
-  hexagon: { width: 160, height: 140 },
-}
-
-/**
- * Named accessors into the shared `NODE_COLORS` palette so template definitions
- * can read `COLOR.blue` instead of an opaque hex value.
+ * Named accessors into the shared palette so template definitions can read
+ * `COLOR.blue` instead of an opaque hex value.
  */
 const COLOR = {
-  neutral: NODE_COLORS[0].fill,
-  blue: NODE_COLORS[1].fill,
-  purple: NODE_COLORS[2].fill,
-  orange: NODE_COLORS[3].fill,
-  red: NODE_COLORS[4].fill,
-  pink: NODE_COLORS[5].fill,
-  green: NODE_COLORS[6].fill,
-  teal: NODE_COLORS[7].fill,
+  neutral: NODE_COLOR_BY_NAME.neutral.fill,
+  blue: NODE_COLOR_BY_NAME.blue.fill,
+  purple: NODE_COLOR_BY_NAME.purple.fill,
+  orange: NODE_COLOR_BY_NAME.orange.fill,
+  red: NODE_COLOR_BY_NAME.red.fill,
+  pink: NODE_COLOR_BY_NAME.pink.fill,
+  green: NODE_COLOR_BY_NAME.green.fill,
+  teal: NODE_COLOR_BY_NAME.teal.fill,
 } as const
 
 interface NodeSpec {
@@ -65,7 +50,7 @@ interface NodeSpec {
 /** Build a `CanvasNode`, defaulting shape, color, and per-shape size. */
 function node(spec: NodeSpec): CanvasNode {
   const shape = spec.shape ?? "rectangle"
-  const size = SHAPE_SIZES[shape]
+  const size = DEFAULT_SHAPE_SIZES[shape]
   return {
     id: spec.id,
     type: "canvasNode",
@@ -90,12 +75,7 @@ function edge(source: string, target: string, label?: string): CanvasEdge {
     source,
     target,
     type: "canvasEdge",
-    markerEnd: {
-      type: MarkerType.ArrowClosed,
-      color: EDGE_STROKE,
-      width: 18,
-      height: 18,
-    },
+    markerEnd: DEFAULT_EDGE_MARKER,
     data: label ? { label } : {},
   }
 }

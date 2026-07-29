@@ -5,7 +5,6 @@ import {
   BackgroundVariant,
   ConnectionLineType,
   ConnectionMode,
-  MarkerType,
   MiniMap,
   ReactFlow,
   reconnectEdge,
@@ -36,12 +35,18 @@ import {
 
 import { useCanvasAutosave, type SaveStatus } from "@/hooks/use-canvas-autosave"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
-import { DEFAULT_NODE_COLOR, type CanvasNode, type CanvasEdge } from "@/types/canvas"
+import {
+  DEFAULT_EDGE_MARKER,
+  DEFAULT_NODE_COLOR,
+  type CanvasNode,
+  type CanvasEdge,
+} from "@/types/canvas"
 import { StarterTemplatesModal } from "@/components/editor/starter-templates-modal"
 import type { CanvasTemplate } from "@/components/editor/starter-templates"
+import { AiStatusBanner } from "./ai-status-banner"
 import { CanvasNodeRenderer } from "./canvas-node"
 import { CanvasControls } from "./canvas-controls"
-import { CanvasEdgeRenderer, EDGE_STROKE } from "./canvas-edge"
+import { CanvasEdgeRenderer } from "./canvas-edge"
 import { LiveCursors } from "./live-cursors"
 import { PresenceAvatars } from "./presence-avatars"
 import { ShapePanel, type ShapeDragPayload } from "./shape-panel"
@@ -50,12 +55,7 @@ import { ShapePanel, type ShapeDragPayload } from "./shape-panel"
 // these defaults: the custom canvas edge renderer plus a matching arrowhead.
 const DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
   type: "canvasEdge",
-  markerEnd: {
-    type: MarkerType.ArrowClosed,
-    color: EDGE_STROKE,
-    width: 18,
-    height: 18,
-  },
+  markerEnd: DEFAULT_EDGE_MARKER,
 }
 
 interface CanvasProps {
@@ -305,6 +305,7 @@ export function Canvas({
         <LiveCursors />
       </ReactFlow>
 
+      <AiStatusBanner />
       <PresenceAvatars />
 
       <StarterTemplatesModal

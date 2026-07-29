@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/.playwright-mcp/
 
 # next.js
 /.next/
@@ -45,3 +46,5 @@ next-env.d.ts
 # ephemeral issue-reporting artifacts
 context/current-issue.md
 context/screenshots/
+
+.trigger

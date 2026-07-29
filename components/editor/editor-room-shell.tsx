@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useRef, useState } from "react"
+import { LiveblocksProvider, RoomProvider } from "@liveblocks/react/suspense"
 
 import { AiSidebar } from "@/components/editor/ai-sidebar"
 import { CanvasRoom } from "@/components/editor/canvas/canvas-room"
@@ -22,10 +23,12 @@ interface EditorRoomShellProps {
 }
 
 /**
- * Full-viewport workspace shell for an open project room. Holds the left
- * sidebar and right AI-sidebar open state plus the shared project-dialog hook,
- * and lays out the navbar, project sidebar, collaborative canvas, and the
- * floating AI sidebar. AI generation logic is not wired yet.
+ * Full-viewport workspace shell for an open project room. Joins the project's
+ * Liveblocks room, holds the left sidebar and right AI-sidebar open state plus
+ * the shared project-dialog hook, and lays out the navbar, project sidebar,
+ * collaborative canvas, and the floating AI sidebar. Design runs are started
+ * from the sidebar and land on the canvas through Liveblocks, so nothing here
+ * has to route generated nodes or edges.
  */
 export function EditorRoomShell({
   roomId,
@@ -64,31 +67,43 @@ export function EditorRoomShell({
         onOpenTemplates={() => setTemplatesOpen(true)}
       />
 
-      <div className="relative flex flex-1 overflow-hidden">
-        <ProjectSidebar
-          isOpen={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-          ownedProjects={ownedProjects}
-          sharedProjects={sharedProjects}
-          currentProjectId={roomId}
-          onCreateProject={dialogs.openCreate}
-          onRenameProject={dialogs.openRename}
-          onDeleteProject={dialogs.openDelete}
-        />
+      {/* The canvas and the AI sidebar are both participants in the same room:
+          the canvas syncs the graph and cursors, the sidebar reads the shared
+          AI status feed. So the room is entered here, around both of them,
+          rather than inside the canvas. */}
+      <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
+        <RoomProvider
+          id={roomId}
+          initialPresence={{ cursor: null, thinking: false }}
+        >
+          <div className="relative flex flex-1 overflow-hidden">
+            <ProjectSidebar
+              isOpen={sidebarOpen}
+              onClose={() => setSidebarOpen(false)}
+              ownedProjects={ownedProjects}
+              sharedProjects={sharedProjects}
+              currentProjectId={roomId}
+              onCreateProject={dialogs.openCreate}
+              onRenameProject={dialogs.openRename}
+              onDeleteProject={dialogs.openDelete}
+            />
 
-        <CanvasRoom
-          roomId={roomId}
-          templatesOpen={templatesOpen}
-          onTemplatesOpenChange={setTemplatesOpen}
-          onSaveStatusChange={setSaveStatus}
-          onRegisterSave={handleRegisterSave}
-        />
+            <CanvasRoom
+              roomId={roomId}
+              templatesOpen={templatesOpen}
+              onTemplatesOpenChange={setTemplatesOpen}
+              onSaveStatusChange={setSaveStatus}
+              onRegisterSave={handleRegisterSave}
+            />
 
-        <AiSidebar
-          isOpen={aiSidebarOpen}
-          onClose={() => setAiSidebarOpen(false)}
-        />
-      </div>
+            <AiSidebar
+              isOpen={aiSidebarOpen}
+              roomId={roomId}
+              onClose={() => setAiSidebarOpen(false)}
+            />
+          </div>
+        </RoomProvider>
+      </LiveblocksProvider>
 
       <ProjectDialogs dialogs={dialogs} />
 
