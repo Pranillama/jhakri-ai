@@ -1,4 +1,4 @@
-import { tasks } from "@trigger.dev/sdk";
+import { runs, tasks } from "@trigger.dev/sdk";
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
@@ -83,13 +83,18 @@ export async function POST(request: Request) {
       roomId: payload.roomId,
     });
 
-    await prisma.taskRun.create({
-      data: {
-        runId: handle.id,
-        projectId: payload.projectId,
-        userId: identity.userId,
-      },
-    });
+    try {
+      await prisma.taskRun.create({
+        data: {
+          runId: handle.id,
+          projectId: payload.projectId,
+          userId: identity.userId,
+        },
+      });
+    } catch (ownershipError) {
+      await runs.cancel(handle.id).catch(() => {});
+      throw ownershipError;
+    }
 
     return NextResponse.json({ runId: handle.id });
   } catch {

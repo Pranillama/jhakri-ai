@@ -11,7 +11,7 @@ import {
   type NodeShape,
 } from "@/types/canvas";
 
-import { cellForPosition, type GridCell } from "./design-layout";
+import { cellForPosition, DESIGN_GRID, type GridCell } from "./design-layout";
 
 /**
  * Node sizes the agent can ask for, as multiples of the shape's default size.
@@ -35,7 +35,11 @@ export const NODE_SIZE_NAMES = Object.keys(NODE_SIZE_SCALES) as NodeSizeName[];
 
 /** Hard bounds on a node's rendered size, in pixels. */
 const MIN_NODE_SIZE = { width: 80, height: 60 };
-const MAX_NODE_SIZE = { width: 400, height: 400 };
+const GRID_CLEARANCE = 40;
+const MAX_NODE_SIZE = {
+  width: Math.min(400, DESIGN_GRID.columnWidth - GRID_CLEARANCE),
+  height: Math.min(400, DESIGN_GRID.rowHeight - GRID_CLEARANCE),
+};
 
 /**
  * How far from the origin a node may be placed. Generous enough for any real
