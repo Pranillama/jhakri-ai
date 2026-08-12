@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useRef, useState } from "react"
+import { useLiveblocksFlow } from "@liveblocks/react-flow"
 import {
   Bot,
   Download,
@@ -15,13 +16,23 @@ import {
   DesignRunWatcher,
   type DesignRunOutcome,
 } from "@/components/editor/design-run-watcher"
+import { SpecPreviewModal } from "@/components/editor/spec-preview-modal"
+import {
+  SpecRunWatcher,
+  type SpecRunOutcome,
+} from "@/components/editor/spec-run-watcher"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { useAiChat, type ChatFeedMessage } from "@/hooks/use-ai-chat"
 import { useAiStatus } from "@/hooks/use-ai-status"
+import { useProjectSpecs } from "@/hooks/use-project-specs"
 import { startDesignRun, type DesignRunHandle } from "@/lib/ai-design-run"
+import { startSpecRun, type SpecRunHandle } from "@/lib/ai-spec-run"
+import { specDownloadUrl } from "@/lib/project-specs"
+import type { CanvasEdge, CanvasNode } from "@/types/canvas"
 import { aiStatusText, isActiveRunState } from "@/types/tasks"
+import type { ProjectSpecSummary } from "@/types/project-spec"
 import { cn } from "@/lib/utils"
 
 /** Prompt suggestions shown in the AI Architect empty state. */
@@ -41,6 +52,9 @@ const ON_AGENT_TEXT = "text-[color:var(--bg-base)]"
 /** Shown in the status strip before the run publishes its first update. */
 const STARTING_TEXT = "Starting the design run…"
 
+/** Shown above the Generate Spec button before the run publishes its first update. */
+const SPEC_STARTING_TEXT = "Starting spec generation…"
+
 /**
  * Publishes an agent message without letting a feed write become an unhandled
  * rejection. These calls report an outcome the user can already see on the
@@ -57,9 +71,12 @@ function postAgentMessage(
 }
 
 /** Turns a thrown value into something worth showing in the chat feed. */
-function describeError(error: unknown): string {
+function describeError(
+  error: unknown,
+  fallback = "Something went wrong starting the design run."
+): string {
   const message = error instanceof Error ? error.message.trim() : ""
-  return message || "Something went wrong starting the design run."
+  return message || fallback
 }
 
 interface AiSidebarProps {
@@ -115,7 +132,7 @@ export function AiSidebar({ isOpen, roomId, onClose }: AiSidebarProps) {
           value="specs"
           className="min-h-0 overflow-y-auto p-3"
         >
-          <SpecsTab />
+          <SpecsTab projectId={roomId} />
         </TabsContent>
       </Tabs>
     </aside>
@@ -423,44 +440,192 @@ function ChatBubble({
   )
 }
 
-function SpecsTab() {
+/** Formats an ISO timestamp for the spec list rows. */
+function formatSpecDate(iso: string): string {
+  return new Date(iso).toLocaleString([], {
+    dateStyle: "medium",
+    timeStyle: "short",
+  })
+}
+
+/**
+ * Specs tab: generates new specs and shows the project's existing ones,
+ * fetched from the backend. Clicking a row opens the Markdown preview modal;
+ * the download button next to it triggers the browser's normal file download
+ * directly, without opening the modal.
+ *
+ * Generation reuses the same collaborative run-status feed as the AI
+ * Architect tab (`task: "spec"`, discriminated from `"design"` so the two
+ * don't block each other's button) — a run started by any participant is
+ * reflected here for everyone, and its outcome posts into the shared
+ * `ai-chat` feed exactly like a design run's does.
+ */
+function SpecsTab({ projectId }: { projectId: string }) {
+  const { specs, loading, error, refresh } = useProjectSpecs(projectId)
+  const [previewSpec, setPreviewSpec] = useState<ProjectSpecSummary | null>(
+    null
+  )
+  const [submitting, setSubmitting] = useState(false)
+  const [activeRun, setActiveRun] = useState<SpecRunHandle | null>(null)
+
+  const { messages, sendAssistantMessage } = useAiChat()
+
+  // Read-only subscription to the same collaborative canvas graph `Canvas`
+  // renders from — this tab never mounts a `<ReactFlow>` or calls the
+  // mutators this hook also returns, so it's just another reader of shared
+  // Storage, not a second owner of it.
+  const { nodes, edges } = useLiveblocksFlow<CanvasNode, CanvasEdge>({
+    nodes: { initial: [] },
+    edges: { initial: [] },
+  })
+  const canvasReady = nodes !== null && edges !== null
+
+  const status = useAiStatus()
+  const specFeedActive =
+    status !== null && status.task === "spec" && isActiveRunState(status.state)
+  const generating = submitting || activeRun !== null || specFeedActive
+
+  const handleRunFinished = useCallback(
+    (outcome: SpecRunOutcome) => {
+      setActiveRun(null)
+      if (outcome.ok) {
+        postAgentMessage(sendAssistantMessage, "Generated a new spec.")
+        refresh()
+      } else {
+        postAgentMessage(sendAssistantMessage, outcome.message)
+      }
+    },
+    [sendAssistantMessage, refresh]
+  )
+
+  async function handleGenerate() {
+    if (generating || !canvasReady) return
+
+    setSubmitting(true)
+    try {
+      setActiveRun(
+        await startSpecRun({
+          roomId: projectId,
+          chatHistory: messages,
+          nodes,
+          edges,
+        })
+      )
+    } catch (err) {
+      postAgentMessage(
+        sendAssistantMessage,
+        describeError(err, "Something went wrong starting spec generation.")
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
+      {/* Keyed per run, same reasoning as ArchitectTab's DesignRunWatcher. */}
+      {activeRun ? (
+        <SpecRunWatcher
+          key={activeRun.runId}
+          runId={activeRun.runId}
+          accessToken={activeRun.publicToken}
+          onFinish={handleRunFinished}
+        />
+      ) : null}
+
       <Button
         className="w-full bg-ai text-white hover:bg-ai/90"
-        aria-label="Generate spec"
+        aria-label={generating ? "Generating spec" : "Generate spec"}
+        onClick={() => void handleGenerate()}
+        disabled={generating || !canvasReady}
       >
-        <Sparkles className="h-4 w-4" />
-        Generate Spec
+        {generating ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Sparkles className="h-4 w-4" />
+        )}
+        {generating ? "Generating…" : "Generate Spec"}
       </Button>
 
-      <div className="rounded-2xl border border-surface-border bg-elevated p-4">
-        <div className="flex items-start gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-ai/15 text-ai-text">
-            <FileText className="h-4 w-4" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate text-sm font-medium text-copy-primary">
-              E-commerce Backend Spec
-            </h3>
-            <p className="mt-1 line-clamp-2 text-xs text-copy-muted">
-              A service-oriented backend with an API gateway, catalog and order
-              services, a payment integration, and a Postgres data layer.
-            </p>
-          </div>
+      {generating ? (
+        <RunStatusStrip
+          text={status && specFeedActive ? aiStatusText(status) : SPEC_STARTING_TEXT}
+        />
+      ) : null}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-6 text-copy-muted">
+          <Loader2 className="h-4 w-4 animate-spin" />
         </div>
-        <div className="mt-4 flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            aria-label="Download spec"
-          >
-            <Download className="h-4 w-4" />
-            Download
-          </Button>
+      ) : error ? (
+        <p className="py-4 text-center text-sm text-error">{error}</p>
+      ) : specs.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-surface-border px-4 py-8 text-center">
+          <FileText className="h-6 w-6 text-copy-faint" />
+          <p className="text-xs text-copy-muted">No specs generated yet.</p>
         </div>
-      </div>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {specs.map((spec) => (
+            <SpecListItem
+              key={spec.id}
+              projectId={projectId}
+              spec={spec}
+              onPreview={() => setPreviewSpec(spec)}
+            />
+          ))}
+        </ul>
+      )}
+
+      <SpecPreviewModal
+        projectId={projectId}
+        spec={previewSpec}
+        onOpenChange={(open) => {
+          if (!open) setPreviewSpec(null)
+        }}
+      />
     </div>
+  )
+}
+
+function SpecListItem({
+  projectId,
+  spec,
+  onPreview,
+}: {
+  projectId: string
+  spec: ProjectSpecSummary
+  onPreview: () => void
+}) {
+  return (
+    <li className="flex items-center gap-2 rounded-2xl border border-surface-border bg-elevated p-3">
+      <button
+        type="button"
+        onClick={onPreview}
+        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+      >
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-ai/15 text-ai-text">
+          <FileText className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-copy-primary">
+            {spec.filename}
+          </p>
+          <p className="mt-0.5 text-xs text-copy-muted">
+            {formatSpecDate(spec.createdAt)}
+          </p>
+        </div>
+      </button>
+      <Button
+        asChild
+        variant="ghost"
+        size="icon-sm"
+        aria-label={`Download ${spec.filename}`}
+      >
+        <a href={specDownloadUrl(projectId, spec.id)}>
+          <Download className="h-4 w-4" />
+        </a>
+      </Button>
+    </li>
   )
 }

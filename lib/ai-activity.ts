@@ -1,5 +1,3 @@
-import { LiveblocksError } from "@liveblocks/node";
-
 import { AI_AGENT } from "@/types/ai-status";
 import {
   AI_STATUS_FEED_ID,
@@ -8,7 +6,7 @@ import {
   type AiTaskKind,
 } from "@/types/tasks";
 
-import { getLiveblocks } from "./liveblocks";
+import { getLiveblocks, isLiveblocksStatus } from "./liveblocks";
 
 /**
  * Seconds the agent's ephemeral presence survives without a refresh. Every
@@ -144,7 +142,7 @@ export class AiActivityPublisher {
       .createFeed({ roomId: this.#roomId, feedId: AI_STATUS_FEED_ID })
       .then(() => undefined)
       .catch((error: unknown) => {
-        if (error instanceof LiveblocksError && error.status === 409) {
+        if (isLiveblocksStatus(error, 409)) {
           return;
         }
 
