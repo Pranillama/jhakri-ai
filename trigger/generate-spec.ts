@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-import { put } from "@vercel/blob";
+import { del, put } from "@vercel/blob";
 import { logger, schemaTask } from "@trigger.dev/sdk";
 import { z } from "zod";
 
@@ -87,9 +87,21 @@ export const generateSpec = schemaTask({
         allowOverwrite: true,
       });
 
-      await prisma.projectSpec.create({
-        data: { id: specId, projectId: payload.projectId, filePath: blob.url },
-      });
+      try {
+        await prisma.projectSpec.create({
+          data: { id: specId, projectId: payload.projectId, filePath: blob.url },
+        });
+      } catch (error) {
+        // The blob already landed in storage; without this the row creation
+        // failing would leave it there forever with nothing pointing at it.
+        await del(blob.url).catch((deleteError: unknown) => {
+          logger.warn("generate-spec: failed to delete orphaned blob", {
+            url: blob.url,
+            error: deleteError,
+          });
+        });
+        throw error;
+      }
 
       await activity.publish("complete", "Spec generated.");
 

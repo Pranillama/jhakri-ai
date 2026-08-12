@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useLiveblocksFlow } from "@liveblocks/react-flow"
 import {
   Bot,
@@ -485,6 +485,26 @@ function SpecsTab({ projectId }: { projectId: string }) {
   const specFeedActive =
     status !== null && status.task === "spec" && isActiveRunState(status.state)
   const generating = submitting || activeRun !== null || specFeedActive
+
+  // `handleRunFinished` only fires for whoever's own `SpecRunWatcher` is
+  // mounted — i.e. the participant who clicked Generate. Everyone else in the
+  // room only sees `specFeedActive` flip through the shared status feed, so
+  // their list would otherwise never learn a spec was added. Refreshing on
+  // every active→complete transition covers both: it's a harmless extra
+  // fetch for the initiator (already refreshed by `handleRunFinished`) and
+  // the only refresh anyone else gets.
+  const wasSpecFeedActiveRef = useRef(specFeedActive)
+  useEffect(() => {
+    if (
+      wasSpecFeedActiveRef.current &&
+      !specFeedActive &&
+      status?.task === "spec" &&
+      status.state === "complete"
+    ) {
+      refresh()
+    }
+    wasSpecFeedActiveRef.current = specFeedActive
+  }, [specFeedActive, status, refresh])
 
   const handleRunFinished = useCallback(
     (outcome: SpecRunOutcome) => {

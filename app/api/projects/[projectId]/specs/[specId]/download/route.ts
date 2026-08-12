@@ -42,20 +42,25 @@ export async function GET(_request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: "Spec not found" }, { status: 404 });
   }
 
+  let blob: Awaited<ReturnType<typeof get>> | null;
   try {
-    const blob = await get(spec.filePath, { access: "private" });
-    if (!blob?.stream) {
-      return NextResponse.json({ error: "Spec not found" }, { status: 404 });
-    }
+    // `get` returns null for a missing blob, but throws for everything else
+    // (auth/config/network failures) — only the former is a 404.
+    blob = await get(spec.filePath, { access: "private" });
+  } catch (error) {
+    console.error("Failed to fetch spec blob", error);
+    return NextResponse.json({ error: "Could not download spec" }, { status: 500 });
+  }
 
-    return new NextResponse(blob.stream, {
-      status: 200,
-      headers: {
-        "Content-Type": "text/markdown; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${specFilename(specId)}"`,
-      },
-    });
-  } catch {
+  if (!blob?.stream) {
     return NextResponse.json({ error: "Spec not found" }, { status: 404 });
   }
+
+  return new NextResponse(blob.stream, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/markdown; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${specFilename(specId)}"`,
+    },
+  });
 }

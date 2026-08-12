@@ -58,8 +58,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  // Spec generation can run long enough that the SDK's 15-minute token default
+  // would expire mid-run and cut off the client's realtime subscription.
   const token = await triggerAuth.createPublicToken({
     scopes: { read: { runs: [runId] } },
+    expirationTime: "1hr",
   });
 
   return NextResponse.json({ token });
