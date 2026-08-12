@@ -1,4 +1,4 @@
-import { Liveblocks, LiveblocksError } from "@liveblocks/node";
+import { Liveblocks } from "@liveblocks/node";
 
 /**
  * Fixed cursor palette. A user ID is mapped deterministically onto one of these
@@ -65,6 +65,26 @@ export function getLiveblocks(): Liveblocks {
 }
 
 /**
+ * True when `error` is a Liveblocks API error with the given HTTP status.
+ * Checks the `status` property directly rather than `error instanceof
+ * LiveblocksError`: `getLiveblocks()` caches its client on `globalThis` so it
+ * survives dev Fast Refresh, but that means a long-lived client can throw a
+ * `LiveblocksError` whose class reference comes from a module instance that
+ * was since hot-reloaded — making `instanceof` against a freshly imported
+ * `LiveblocksError` unreliable in dev (confirmed live: a genuine 409 from
+ * `createFeed` fell through an `instanceof` check and surfaced as an
+ * unhandled 500). `status` is a plain property, unaffected by module identity.
+ */
+export function isLiveblocksStatus(error: unknown, status: number): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    (error as { status?: unknown }).status === status
+  );
+}
+
+/**
  * Creates a room feed if it doesn't already exist. Messages can only be added
  * to a feed that exists, so "create or reuse" is a create whose 409 (already
  * exists) is the reuse — the same pattern `AiActivityPublisher` uses for
@@ -79,7 +99,7 @@ export async function ensureFeed(
   try {
     await liveblocks.createFeed({ roomId, feedId });
   } catch (error) {
-    if (error instanceof LiveblocksError && error.status === 409) {
+    if (isLiveblocksStatus(error, 409)) {
       return;
     }
 

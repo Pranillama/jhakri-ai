@@ -45,7 +45,7 @@ const MODEL_MAX_OUTPUT_TOKENS = 8192;
  * `GOOGLE_GENERATIVE_AI_API_KEY` is the AI SDK's own default — all three are
  * accepted so the task works whichever one an environment sets.
  */
-function resolveApiKey(): string {
+export function resolveApiKey(): string {
   const key =
     process.env.GEMINI_API_KEY ??
     process.env.GOOGLE_AI_API_KEY ??
@@ -63,8 +63,10 @@ function resolveApiKey(): string {
 /**
  * What each shape means, keyed by shape so a new entry in `NODE_SHAPES` is a
  * compile error here rather than a shape the model is never told about.
+ * Exported for reuse by spec generation, which describes the same canvas
+ * shapes in its own prompt.
  */
-const SHAPE_MEANINGS: Record<NodeShape, string> = {
+export const SHAPE_MEANINGS: Record<NodeShape, string> = {
   rectangle: "general-purpose component or service",
   diamond: "decision point or gateway",
   circle: "event, trigger, or endpoint",

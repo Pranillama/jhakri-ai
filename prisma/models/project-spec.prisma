@@ -1,0 +1,12 @@
+// Metadata for a generated spec artifact. The spec's Markdown content lives in
+// Vercel Blob at `specs/{projectId}/{id}.md`; this record only points to it via
+// `filePath`, following the same metadata + blob split as `Project.canvasJsonPath`.
+model ProjectSpec {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  filePath  String
+  createdAt DateTime @default(now())
+
+  @@index([projectId, createdAt])
+}
