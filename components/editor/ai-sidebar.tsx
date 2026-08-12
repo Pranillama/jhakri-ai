@@ -203,7 +203,8 @@ function ArchitectTab({ roomId }: { roomId: string }) {
   // Shared, not local: the status comes from the room's feed, so a run someone
   // else started puts every participant's composer into the same state.
   const status = useAiStatus()
-  const feedActive = status !== null && isActiveRunState(status.state)
+  const feedActive =
+    status !== null && status.task === "design" && isActiveRunState(status.state)
 
   // Two sources, because neither covers the whole run on its own. The feed is
   // the shared view, but it stays silent between submitting the prompt and the
