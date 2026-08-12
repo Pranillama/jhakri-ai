@@ -6,6 +6,7 @@ import {
   AI_STATUS_FEED_ID,
   parseAiStatusMessage,
   type AiStatusMessage,
+  type AiTaskKind,
 } from "@/types/tasks"
 
 /** The newest valid status message, plus when it was published. */
@@ -15,8 +16,17 @@ export interface AiStatus extends AiStatusMessage {
 }
 
 /**
- * Subscribes to the room's shared `ai-status-feed` and returns only the most
- * recent status message — the one thing every surface in the editor shows.
+ * Subscribes to the room's shared `ai-status-feed` and returns the most recent
+ * status message.
+ *
+ * With no `task` argument, this is the single latest message across every
+ * generator — what `AiStatusBanner` wants, since it shows whichever run is
+ * currently active in the room regardless of which one started it. Passed a
+ * `task`, it instead returns that generator's own latest message, skipping any
+ * newer messages from a *different* task rather than being shadowed by them —
+ * without this, a design run starting while a spec run is still in flight would
+ * make the spec's own completion invisible to a caller only watching for it,
+ * since the design run's message would be "the newest" in the untargeted search.
  *
  * Feed payloads are validated before they leave this hook, so a message written
  * by an older publisher (or by anything else) is skipped rather than rendered;
@@ -28,7 +38,7 @@ export interface AiStatus extends AiStatusMessage {
  * feed at all — both cases resolve to "no status" instead of a fallback or a
  * thrown error.
  */
-export function useAiStatus(): AiStatus | null {
+export function useAiStatus(task?: AiTaskKind): AiStatus | null {
   const { messages, error, isLoading } = useFeedMessages(AI_STATUS_FEED_ID)
 
   if (isLoading || error || !messages) return null
@@ -40,7 +50,7 @@ export function useAiStatus(): AiStatus | null {
     const message = messages[i]
     const data = parseAiStatusMessage(message.data)
 
-    if (data) {
+    if (data && (task === undefined || data.task === task)) {
       return { ...data, at: message.createdAt }
     }
   }

@@ -63,7 +63,7 @@ export async function POST(request: Request) {
   const payload = parseDesignRequest(body);
   if (!payload) {
     return NextResponse.json(
-      { error: "prompt, roomId, and projectId are required" },
+      { error: "prompt and projectId are required" },
       { status: 400 }
     );
   }

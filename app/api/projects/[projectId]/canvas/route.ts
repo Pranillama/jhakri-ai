@@ -1,8 +1,13 @@
 import { get, put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 
+import { readCanvasSnapshot } from "@/lib/design-canvas";
 import { prisma } from "@/lib/prisma";
-import { getAccessibleProject, getCurrentIdentity } from "@/lib/project-access";
+import {
+  getAccessibleProject,
+  getAccessibleProjectCanvasPath,
+  getCurrentIdentity,
+} from "@/lib/project-access";
 import type { CanvasEdge, CanvasNode } from "@/types/canvas";
 
 interface RouteContext {
@@ -30,13 +35,24 @@ function parseCanvasPayload(body: unknown): CanvasPayload | undefined {
 }
 
 /**
- * PUT /api/projects/[projectId]/canvas — save the current canvas graph. Any
- * project member (owner or collaborator) may save, matching who can edit the
- * collaborative canvas. The graph is uploaded to Vercel Blob at a stable,
- * private path (`canvas/{projectId}.json`, overwritten on every save) and the
- * returned URL is stored on the Prisma project record.
+ * PUT /api/projects/[projectId]/canvas — snapshot the room's current
+ * Liveblocks Storage and persist it. Any project member (owner or
+ * collaborator) may save, matching who can edit the collaborative canvas.
+ *
+ * Takes no request body: the graph is read directly from Storage server-side
+ * via `readCanvasSnapshot` rather than trusted from the client. Storage is
+ * already the converged, authoritative state for everyone in the room — a
+ * client-supplied graph would just be that one browser's local copy of it,
+ * which can lag (network jitter, a backgrounded tab) right at the moment its
+ * debounced autosave fires. Reading Storage directly removes that "which
+ * client's stale snapshot wins" race entirely: every save persists the same
+ * source of truth, just possibly at a slightly different instant.
+ *
+ * The graph is uploaded to Vercel Blob at a stable, private path
+ * (`canvas/{projectId}.json`, overwritten on every save) and the returned URL
+ * is stored on the Prisma project record.
  */
-export async function PUT(request: Request, { params }: RouteContext) {
+export async function PUT(_request: Request, { params }: RouteContext) {
   const identity = await getCurrentIdentity();
   if (!identity) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -49,25 +65,14 @@ export async function PUT(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: unknown;
   try {
-    body = await request.json();
-  } catch {
-    body = undefined;
-  }
+    // `roomId` and `projectId` are the same identifier in this app (see the
+    // Architecture Decisions entry in progress-tracker.md).
+    const snapshot = await readCanvasSnapshot(projectId);
 
-  const payload = parseCanvasPayload(body);
-  if (!payload) {
-    return NextResponse.json(
-      { error: "nodes and edges arrays are required" },
-      { status: 400 }
-    );
-  }
-
-  try {
     const blob = await put(
       `canvas/${projectId}.json`,
-      JSON.stringify(payload),
+      JSON.stringify(snapshot),
       {
         access: "private",
         contentType: "application/json",
@@ -104,17 +109,12 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
   const { projectId } = await params;
 
-  const project = await getAccessibleProject(projectId, identity);
-  if (!project) {
+  const record = await getAccessibleProjectCanvasPath(projectId, identity);
+  if (!record) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const record = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { canvasJsonPath: true },
-  });
-
-  if (!record?.canvasJsonPath) {
+  if (!record.canvasJsonPath) {
     return NextResponse.json({ nodes: [], edges: [] });
   }
 

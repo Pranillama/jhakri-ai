@@ -202,9 +202,10 @@ function ArchitectTab({ roomId }: { roomId: string }) {
 
   // Shared, not local: the status comes from the room's feed, so a run someone
   // else started puts every participant's composer into the same state.
-  const status = useAiStatus()
-  const feedActive =
-    status !== null && status.task === "design" && isActiveRunState(status.state)
+  // Scoped to "design" so a concurrent spec run's newer feed messages can't
+  // shadow this tab's own status.
+  const status = useAiStatus("design")
+  const feedActive = status !== null && isActiveRunState(status.state)
 
   // Two sources, because neither covers the whole run on its own. The feed is
   // the shared view, but it stays silent between submitting the prompt and the
@@ -481,9 +482,13 @@ function SpecsTab({ projectId }: { projectId: string }) {
   })
   const canvasReady = nodes !== null && edges !== null
 
-  const status = useAiStatus()
-  const specFeedActive =
-    status !== null && status.task === "spec" && isActiveRunState(status.state)
+  // Scoped to "spec" so a concurrent design run's newer feed messages can't
+  // shadow this tab's own status — without this, a design run starting before
+  // this tab's own run completed would make that completion invisible here,
+  // since an untargeted "latest across the feed" read would see the design
+  // run's message as newest instead.
+  const status = useAiStatus("spec")
+  const specFeedActive = status !== null && isActiveRunState(status.state)
   const generating = submitting || activeRun !== null || specFeedActive
 
   // `handleRunFinished` only fires for whoever's own `SpecRunWatcher` is
@@ -495,12 +500,7 @@ function SpecsTab({ projectId }: { projectId: string }) {
   // the only refresh anyone else gets.
   const wasSpecFeedActiveRef = useRef(specFeedActive)
   useEffect(() => {
-    if (
-      wasSpecFeedActiveRef.current &&
-      !specFeedActive &&
-      status?.task === "spec" &&
-      status.state === "complete"
-    ) {
+    if (wasSpecFeedActiveRef.current && !specFeedActive && status?.state === "complete") {
       refresh()
     }
     wasSpecFeedActiveRef.current = specFeedActive

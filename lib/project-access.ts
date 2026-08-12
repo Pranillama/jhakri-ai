@@ -52,6 +52,19 @@ export async function getCurrentIdentity(): Promise<CurrentIdentity | null> {
   return { userId, emails: [...emails] };
 }
 
+/** The ownership-or-collaborator `where` clause every access check shares. */
+function accessibleProjectWhere(projectId: string, identity: CurrentIdentity) {
+  return {
+    id: projectId,
+    OR: [
+      { ownerId: identity.userId },
+      ...(identity.emails.length > 0
+        ? [{ collaborators: { some: { email: { in: identity.emails } } } }]
+        : []),
+    ],
+  };
+}
+
 /**
  * Loads a project the given identity may open, by ownership or collaborator
  * membership. Returns `null` when the project does not exist or the user has no
@@ -62,15 +75,7 @@ export async function getAccessibleProject(
   identity: CurrentIdentity
 ): Promise<AccessibleProject | null> {
   const project = await prisma.project.findFirst({
-    where: {
-      id: projectId,
-      OR: [
-        { ownerId: identity.userId },
-        ...(identity.emails.length > 0
-          ? [{ collaborators: { some: { email: { in: identity.emails } } } }]
-          : []),
-      ],
-    },
+    where: accessibleProjectWhere(projectId, identity),
     select: { id: true, name: true, ownerId: true },
   });
 
@@ -83,4 +88,20 @@ export async function getAccessibleProject(
     name: project.name,
     ownership: project.ownerId === identity.userId ? "owned" : "shared",
   };
+}
+
+/**
+ * Same access check as `getAccessibleProject`, but selecting only
+ * `canvasJsonPath` — for the canvas route, which needs nothing else from the
+ * project row. Sharing `accessibleProjectWhere` keeps the authorization logic
+ * itself in one place even though the two queries select different columns.
+ */
+export async function getAccessibleProjectCanvasPath(
+  projectId: string,
+  identity: CurrentIdentity
+): Promise<{ canvasJsonPath: string | null } | null> {
+  return prisma.project.findFirst({
+    where: accessibleProjectWhere(projectId, identity),
+    select: { canvasJsonPath: true },
+  });
 }

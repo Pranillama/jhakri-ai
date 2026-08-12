@@ -102,6 +102,17 @@ export function Canvas({
   const [readyForAutosave, setReadyForAutosave] = useState(false)
   const initialLoadRef = useRef(false)
 
+  // Mirrors the live `nodes`/`edges` on every render so the async load below
+  // can re-check Storage's *current* state right before applying a fetched
+  // snapshot — not the state it captured when the effect started. Storage can
+  // go from empty to non-empty while the fetch is in flight (an AI run
+  // starting, or another tab's own load already applying), and without this
+  // re-check a stale Blob snapshot would silently overwrite that work.
+  const liveGraphRef = useRef({ nodes, edges })
+  useEffect(() => {
+    liveGraphRef.current = { nodes, edges }
+  }, [nodes, edges])
+
   useEffect(() => {
     if (initialLoadRef.current) return
     initialLoadRef.current = true
@@ -121,7 +132,7 @@ export function Canvas({
     }
 
     async function loadSavedCanvas() {
-      if (nodes.length > 0 || edges.length > 0) {
+      if (liveGraphRef.current.nodes.length > 0 || liveGraphRef.current.edges.length > 0) {
         fitLoadedView()
         setReadyForAutosave(true)
         return
@@ -134,7 +145,12 @@ export function Canvas({
             nodes: CanvasNode[]
             edges: CanvasEdge[]
           }
-          if (saved.nodes.length > 0 || saved.edges.length > 0) {
+
+          const stillEmpty =
+            liveGraphRef.current.nodes.length === 0 &&
+            liveGraphRef.current.edges.length === 0
+
+          if (stillEmpty && (saved.nodes.length > 0 || saved.edges.length > 0)) {
             history.pause()
             reactFlow.setNodes(saved.nodes)
             reactFlow.setEdges(saved.edges)
@@ -150,7 +166,7 @@ export function Canvas({
     }
 
     loadSavedCanvas()
-  }, [nodes, edges, reactFlow, history, projectId])
+  }, [reactFlow, history, projectId])
 
   const { status: saveStatus, save } = useCanvasAutosave({
     projectId,
@@ -211,20 +227,42 @@ export function Canvas({
 
   // Broadcast the cursor in flow coordinates so it lands in the same spot on
   // every collaborator's canvas regardless of their pan/zoom or viewport size.
+  // rAF-gated rather than sent on every native mousemove (which can fire at
+  // 60-120Hz): at most one presence broadcast per rendered frame, using the
+  // most recent position by the time that frame runs.
+  const cursorFrameRef = useRef<number | null>(null)
+  const cursorPositionRef = useRef<{ x: number; y: number } | null>(null)
+
+  const cancelCursorFrame = useCallback(() => {
+    if (cursorFrameRef.current !== null) {
+      cancelAnimationFrame(cursorFrameRef.current)
+      cursorFrameRef.current = null
+    }
+  }, [])
+
+  useEffect(() => cancelCursorFrame, [cancelCursorFrame])
+
   const handleMouseMove = useCallback(
     (event: ReactMouseEvent) => {
-      const position = reactFlow.screenToFlowPosition({
+      cursorPositionRef.current = reactFlow.screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
       })
-      updateMyPresence({ cursor: position })
+
+      if (cursorFrameRef.current !== null) return
+
+      cursorFrameRef.current = requestAnimationFrame(() => {
+        cursorFrameRef.current = null
+        updateMyPresence({ cursor: cursorPositionRef.current })
+      })
     },
     [reactFlow, updateMyPresence],
   )
 
   const handleMouseLeave = useCallback(() => {
+    cancelCursorFrame()
     updateMyPresence({ cursor: null })
-  }, [updateMyPresence])
+  }, [cancelCursorFrame, updateMyPresence])
 
   const onDrop = useCallback(
     (e: DragEvent) => {
