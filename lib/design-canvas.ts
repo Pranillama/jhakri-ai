@@ -220,6 +220,15 @@ export async function applyDesignActions({
         }
 
         case "add_edge": {
+          // The plan was validated against a snapshot taken before generation
+          // started; a concurrent edit (e.g. another collaborator deleting a
+          // node) can invalidate it mid-run. An edge pointing at a missing
+          // node breaks rendering for everyone in the room, so re-check both
+          // endpoints against the live flow before adding it.
+          if (!flow.getNode(action.source) || !flow.getNode(action.target)) {
+            break;
+          }
+
           flow.addEdge({
             id: action.id,
             type: "canvasEdge",

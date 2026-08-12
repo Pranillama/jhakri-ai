@@ -14,6 +14,12 @@ export type SaveStatus = "idle" | "saving" | "saved" | "error"
 
 interface UseCanvasAutosaveParams {
   projectId: string
+  /**
+   * Not sent to the server — the route snapshots Liveblocks Storage directly,
+   * since that's already the converged state for the room and this client's
+   * local copy of it can lag. `nodes`/`edges` exist here purely as the
+   * change-detection signal that schedules a debounced save.
+   */
   nodes: CanvasNode[]
   edges: CanvasEdge[]
   /**
@@ -31,7 +37,7 @@ export interface UseCanvasAutosave {
 
 /**
  * Debounced autosave for the collaborative canvas: watches `nodes`/`edges`
- * and, once `enabled`, saves the graph to `/api/projects/[projectId]/canvas`
+ * and, once `enabled`, triggers a save to `/api/projects/[projectId]/canvas`
  * `SAVE_DEBOUNCE_MS` after the last change. Also exposes `save` directly so a
  * manual Save action can trigger the identical request on demand.
  */
@@ -45,19 +51,10 @@ export function useCanvasAutosave({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const resetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Read via a ref so `save` always sends the latest graph, whether it fires
-  // from the debounce timer or a manual click, without needing to change
-  // identity every time the graph changes. Updated in an effect (not during
-  // render) since refs must not be written while rendering.
-  const graphRef = useRef({ nodes, edges })
-  useEffect(() => {
-    graphRef.current = { nodes, edges }
-  }, [nodes, edges])
-
   const save = useCallback(async () => {
     // Never save before the initial load-or-skip decision has resolved: the
-    // room may still hold the empty pre-load state, and PUTting that would
-    // overwrite a previously persisted canvas. The debounce path gates on
+    // room may still hold the empty pre-load state, and saving would persist
+    // that instead of a previously-saved canvas. The debounce path gates on
     // this too; guard here so a manual Save click can't bypass it.
     if (!enabled) return
 
@@ -72,10 +69,10 @@ export function useCanvasAutosave({
 
     setStatus("saving")
     try {
+      // No body: the route reads the current graph from Liveblocks Storage
+      // itself rather than trusting this client's local copy of it.
       const response = await fetch(`/api/projects/${projectId}/canvas`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(graphRef.current),
       })
 
       if (!response.ok) throw new Error("Save failed")
