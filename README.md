@@ -2,7 +2,7 @@
 
 **A real-time collaborative system design workspace — describe a system in plain English, watch an AI agent draw it on a shared canvas, refine it with collaborators, and turn the result into a technical spec.**
 
-*Live demo: coming soon*
+**Live Demo:** [Watch on YouTube](https://youtu.be/O0H5eQkJVBc?si=1Sg6BPFpj7Efu9Tw)
 
 ![Jhakri AI canvas screenshot](docs/screenshots/canvas-overview.png)
 
