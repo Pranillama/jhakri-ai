@@ -63,60 +63,63 @@ Jhakri AI treats the diagram and the spec as two views of the same underlying gr
 
 Jhakri AI splits state across three layers on purpose: Postgres owns relational metadata, Liveblocks owns the live collaborative graph, and Vercel Blob owns durable generated artifacts. Long-running AI work never runs inside a request handler — it's always a Trigger.dev background task.
 
+The diagrams below build up from a 20,000-ft overview to the two AI flows in detail, rather than cramming everything into one graph.
+
+### System Overview
+
+The high-level view: who talks to whom, and who owns what.
+
 ```mermaid
 flowchart TD
-    subgraph Browser["Browser — Next.js Client Components"]
-        Canvas["Canvas\nReact Flow + Liveblocks"]
-        Sidebar["AI Sidebar\nArchitect chat + Specs tab"]
+    Browser["Browser\nNext.js Client Components"]
+    API["Next.js Server\napp/api routes"]
+    Trigger["Trigger.dev\nbackground tasks"]
+    Room["Liveblocks Room\nrealtime state"]
+    Postgres[("PostgreSQL\nvia Prisma")]
+    Blob[("Vercel Blob")]
+    Gemini["Google Gemini\nvia Vercel AI SDK"]
+
+    Browser <--> Room
+    Browser -- "AI prompts, project actions" --> API
+    API -- "trigger.tasks.trigger()" --> Trigger
+    API --> Postgres
+    API -- "canvas load/save" --> Blob
+    Trigger <--> Room
+    Trigger --> Postgres
+    Trigger -- "spec Markdown" --> Blob
+    Trigger <--> Gemini
+```
+
+### Realtime Collaboration Layer
+
+How the browser and the background agents actually share the live canvas, zoomed in on the "Browser ↔ Liveblocks Room ↔ Trigger.dev" leg above.
+
+```mermaid
+flowchart LR
+    subgraph Browser["Browser"]
+        Canvas["Canvas\nReact Flow"]
+        Sidebar["AI Sidebar"]
     end
 
-    subgraph NextServer["Next.js Server — app/api"]
-        AuthRoute["/api/liveblocks-auth"]
-        ProjectRoutes["/api/projects/*\nownership + access checks"]
-        DesignRoute["/api/ai/design"]
-        SpecRoute["/api/ai/spec"]
-    end
-
-    subgraph Trigger["Trigger.dev — durable background tasks"]
-        DesignAgent["design-agent\nplans nodes/edges with Gemini"]
-        SpecAgent["generate-spec\nwrites Markdown with Gemini"]
-    end
-
-    subgraph Liveblocks["Liveblocks Room"]
+    subgraph Room["Liveblocks Room"]
         Storage["Storage\ncanvas nodes + edges"]
         Presence["Presence\ncursors, thinking flag"]
         Feeds["Feeds\nai-status-feed, ai-chat"]
     end
 
-    Postgres[("PostgreSQL\nvia Prisma\nprojects, collaborators, specs, task runs")]
-    Blob[("Vercel Blob\ncanvas snapshots, spec Markdown")]
-    Gemini["Google Gemini\nvia Vercel AI SDK"]
+    subgraph Trigger["Trigger.dev agents"]
+        DesignAgent["design-agent"]
+        SpecAgent["generate-spec"]
+    end
 
     Canvas <--> Storage
-    Canvas -- presence/cursors --> Presence
+    Canvas -- cursors --> Presence
     Sidebar <--> Feeds
-    Sidebar -- "POST /api/ai/design or /spec" --> DesignRoute
-    Sidebar --> SpecRoute
 
-    DesignRoute -- "trigger.tasks.trigger()" --> DesignAgent
-    SpecRoute --> SpecAgent
-    DesignRoute --> Postgres
-    SpecRoute --> Postgres
-
-    DesignAgent -- "readCanvasSnapshot" --> Storage
-    DesignAgent -- "mutateFlow" --> Storage
-    DesignAgent -- presence + status --> Presence
-    DesignAgent -- status --> Feeds
-    DesignAgent <--> Gemini
-
-    SpecAgent -- status --> Feeds
-    SpecAgent <--> Gemini
-    SpecAgent -- "Markdown" --> Blob
-    SpecAgent -- "ProjectSpec row" --> Postgres
-
-    ProjectRoutes --> Postgres
-    ProjectRoutes -- "canvas load/save" --> Blob
-    AuthRoute -- "room token" --> Liveblocks
+    DesignAgent -- "readCanvasSnapshot / mutateFlow" --> Storage
+    DesignAgent -- "thinking flag" --> Presence
+    DesignAgent -- progress --> Feeds
+    SpecAgent -- progress --> Feeds
 ```
 
 ### The AI Design Run
@@ -148,6 +151,36 @@ sequenceDiagram
     T->>R: publish closing summary to ai-chat
     R-->>S: canvas + feed updates (all participants)
     S-->>U: composer unlocks, run outcome shown
+```
+
+### The AI Spec Run
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant S as AI Sidebar (Specs tab)
+    participant A as /api/ai/spec
+    participant T as Trigger.dev task
+    participant R as Liveblocks Room
+    participant G as Gemini
+    participant B as Vercel Blob
+    participant P as PostgreSQL
+
+    U->>S: request spec
+    S->>A: POST projectId
+    A->>A: verify ownership/access
+    A->>T: trigger generate-spec, record TaskRun
+    A-->>S: runId
+    S->>R: subscribe to run via useRealtimeRun
+
+    T->>R: readCanvasSnapshot
+    T->>G: draft Markdown spec from canvas
+    G-->>T: Markdown
+    T->>R: publish progress to ai-status-feed
+    T->>B: write spec Markdown
+    T->>P: write ProjectSpec row
+    R-->>S: feed updates
+    S-->>U: spec appears in Specs tab
 ```
 
 ## Tech Stack
